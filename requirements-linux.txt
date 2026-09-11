@@ -1,0 +1,11 @@
+# VDI Toolkit Dependencies - Linux
+# Run as your normal desktop user. X11/Xorg is recommended.
+
+pystray>=0.19.5
+Pillow>=10.0.0
+pyperclip>=1.8.2
+pyautogui>=0.9.54
+pynput>=1.7.6
+
+# Build tools (optional)
+# pyinstaller>=6.0.0

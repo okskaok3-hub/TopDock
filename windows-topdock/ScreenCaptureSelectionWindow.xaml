@@ -1,0 +1,34 @@
+<Window x:Class="TopDock.ScreenCaptureSelectionWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Select screenshot area" WindowStyle="None" ResizeMode="NoResize"
+        AllowsTransparency="True" Background="Transparent" ShowInTaskbar="False"
+        Topmost="True" Cursor="Cross" WindowStartupLocation="Manual"
+        PreviewKeyDown="Window_PreviewKeyDown">
+    <Grid>
+        <Canvas x:Name="SelectionCanvas" Background="#82080A0F"
+                MouseLeftButtonDown="Canvas_MouseLeftButtonDown"
+                MouseMove="Canvas_MouseMove"
+                MouseLeftButtonUp="Canvas_MouseLeftButtonUp"
+                MouseRightButtonDown="Canvas_MouseRightButtonDown">
+            <Border x:Name="SelectionBorder" Visibility="Collapsed"
+                    Background="#188B5CF6" BorderBrush="#FFE20ACF"
+                    BorderThickness="2" CornerRadius="5">
+                <Border.Effect>
+                    <DropShadowEffect Color="#E20ACF" BlurRadius="18" ShadowDepth="0" Opacity="0.85"/>
+                </Border.Effect>
+            </Border>
+        </Canvas>
+
+        <Border HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,42,0,0"
+                Background="#F21A1D25" BorderBrush="#38FFFFFF" BorderThickness="1"
+                CornerRadius="15" Padding="20,11" IsHitTestVisible="False">
+            <StackPanel>
+                <TextBlock Text="Capture screen area" Foreground="White" FontSize="15"
+                           FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                <TextBlock Text="Drag anywhere on the desktop  •  Esc or right-click to cancel"
+                           Foreground="#B8C1D1" FontSize="11" Margin="0,4,0,0"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>
