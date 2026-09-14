@@ -16,9 +16,13 @@ Open [Releases](https://github.com/okskaok3-hub/TopDock/releases) for the curren
 
 | Edition | Current package | Requirements |
 | --- | --- | --- |
-| Windows | `TopDock-Windows-v5.zip` | Windows x64; Python/.NET installation not needed |
+| Windows portable | [TopDock-Windows-v5.zip](https://github.com/okskaok3-hub/TopDock/releases/download/v1.1.0/TopDock-Windows-v5.zip) | Windows x64; Python/.NET installation not needed |
 | Linux portable | [TopDock-Linux-x86_64](https://github.com/okskaok3-hub/TopDock/releases/download/v1.1.0/TopDock-Linux-x86_64) | x86-64, glibc 2.31+, X11 desktop; Python/Tk and helpers bundled |
 | Other Linux architectures | Build from source | Python 3, Tk, X11 and the system tools listed below |
+
+**[v1.1.0](https://github.com/okskaok3-hub/TopDock/releases/tag/v1.1.0)** includes
+both portable editions and SHA-256 checksums. Download the platform asset, not
+the automatically generated source archives.
 
 The first repository release is **v1.0.0**. The package suffixes `v5` and `v4`
 retain the original platform-specific build numbers. See [CHANGELOG.md](CHANGELOG.md)

@@ -10,7 +10,8 @@
 - Add container build recipes, clean-environment verification, startup checks
   and native 3840×2160 PNG clipboard readback checks.
 - Keep the previous dock, paste, auto-clicker, screenshot and Settings features.
-- Windows remains at v5, available in release v1.0.0.
+- Include the unchanged Windows v5 portable ZIP alongside Linux in v1.1.0,
+  with combined checksums and platform-specific release instructions.
 - Target x86-64 X11/glibc desktops; this is not an ARM/musl/Wayland build.
 
 ## v1.0.0 — Initial repository release — 2026-09-11
