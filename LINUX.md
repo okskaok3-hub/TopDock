@@ -6,17 +6,17 @@ VMware Horizon sessions.
 
 ## Supported desktop environment
 
-The included `TopDock-VDI` binary is built for **x86-64 Kali Linux 2026.2
-(glibc 2.42 or newer)**. It bundles Python and Tk. Older distributions should
-build from source on their own system using `build-linux.sh`.
+The portable `TopDock-Linux-x86_64` executable targets **x86-64 Linux with
+glibc 2.31 or newer and an X11 desktop**. It bundles Python, Tk, wmctrl, xprop,
+xclip, scrot and the PNG capture codec. No `.sh` installer is needed.
+ARM, Alpine/musl and native Wayland are not supported by this binary.
 
 To run the binary in an X11 desktop session:
 
 ```bash
-sudo apt install wmctrl x11-utils xclip scrot
-chmod +x TopDock-VDI
-./TopDock-VDI --check
-./TopDock-VDI
+chmod +x TopDock-Linux-x86_64
+./TopDock-Linux-x86_64 --check
+./TopDock-Linux-x86_64
 ```
 
 Use an X11/Xorg desktop session for complete functionality. GNOME, KDE Plasma,

@@ -16,6 +16,32 @@ startup crash; keep `IncludeNativeLibrariesForSelfExtract` enabled.
 
 ## Linux
 
+### Portable single-file build
+
+On an x86-64 Linux machine with Docker, from the repository root:
+
+```bash
+docker build -t topdock-portable:1.1 -f packaging/Dockerfile.portable .
+mkdir -p release/linux
+docker run --rm -v "$PWD/release/linux:/out" topdock-portable:1.1
+docker build -t topdock-portable-verify -f packaging/Dockerfile.verify .
+```
+
+The output is `release/linux/TopDock-Linux-x86_64`, a direct ELF executable,
+not a shell launcher. It bundles Python, Tk and wmctrl/xprop/xclip/scrot with
+their collected libraries. Ubuntu 20.04 provides the glibc 2.31 build baseline.
+The verification image supplies only an X11 test display, not Python or the
+bundled helper applications. Build checks exercise startup and 4K PNG clipboard
+readback. `--portable-test` replaces the current display's clipboard: run it
+only on an isolated Xvfb display as shown in the Dockerfiles.
+
+This targets x86-64 glibc-based X11 desktops, not ARM, Alpine/musl or native
+Wayland. A writable, executable temporary directory is needed for extraction.
+Dependency versions are selected for Python 3.8 compatibility; transitive
+dependencies and distribution packages are not fully locked.
+
+### Local source build
+
 Install the packages in LINUX.md. For desktop tests also install `xvfb` and `xauth`.
 Use `build-linux.sh` to create an isolated environment and a PyInstaller ELF.
 
@@ -38,10 +64,14 @@ real capture, and 4K clipboard readback. The binary test verifies the packaged
 app stays running and creates its X11 window. These do not prove compatibility
 with every compositor, multi-monitor setup or VDI client.
 
-The release binary was built on Kali 2026.2 with Python 3.13.12, PyInstaller 6.18.0
+The legacy v1.0.0 binary was built on Kali 2026.2 with Python 3.13.12, PyInstaller 6.18.0
 and glibc 2.42. Build on your oldest supported distribution when distributing to
 older systems. Python dependencies are currently minimum-version requirements,
 not a fully locked reproducible build environment.
+
+The v1.1.0 portable binary passed startup/window creation on Ubuntu 20.04,
+dependency and 4K clipboard checks on clean Ubuntu 22.04, and 4K clipboard
+checks on Kali. These tests used isolated Xvfb displays, not live VDI sessions.
 
 ## Source structure
 

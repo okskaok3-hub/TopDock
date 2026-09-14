@@ -2,6 +2,7 @@
 """Premium auto-hiding TopDock for Linux/X11 VDI workflows."""
 
 from datetime import datetime
+import portable_runtime  # Make bundled X11 helpers available before other imports.
 import sys
 import threading
 import time
@@ -702,6 +703,11 @@ def main():
     if not IS_LINUX:
         print("Linux TopDock must be run from a Linux desktop session.")
         return 1
+
+    if "--portable-test" in sys.argv:
+        from portable_checks import run
+        run()
+        return 0
 
     required_modules = {
         "pyperclip": "pyperclip",

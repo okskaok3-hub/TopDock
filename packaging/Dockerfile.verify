@@ -1,0 +1,6 @@
+FROM ubuntu:22.04
+RUN apt-get update && apt-get install -y --no-install-recommends xvfb xauth \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=topdock-portable:1.1 /app/dist-linux/TopDock-VDI /usr/local/bin/TopDock
+RUN xvfb-run -a env XDG_SESSION_TYPE=x11 TopDock --check \
+    && xvfb-run -a -s '-screen 0 3840x2160x24' env XDG_SESSION_TYPE=x11 TopDock --portable-test

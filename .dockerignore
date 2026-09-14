@@ -1,0 +1,16 @@
+**
+!packaging/
+!packaging/Dockerfile.portable
+!linux_topdock.py
+!linux_window_service.py
+!linux_screenshot_service.py
+!portable_runtime.py
+!portable_checks.py
+!paste_text.py
+!clipboard_paste.py
+!auto_clicker.py
+!settings.py
+!platform_utils.py
+!startup_diagnostics.py
+!tests/
+!tests/linux_binary_smoke.py

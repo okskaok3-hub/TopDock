@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.1.0 — Portable Linux executable — 2026-09-14
+
+- Provide a single downloadable `TopDock-Linux-x86_64` ELF executable, without
+  an installer or shell launcher.
+- Lower the Linux compatibility baseline from Kali/glibc 2.42 to glibc 2.31.
+- Bundle Python, Tk, wmctrl, xprop, xclip, scrot and its PNG codec; resolve
+  helpers from the extracted bundle before host utilities.
+- Add container build recipes, clean-environment verification, startup checks
+  and native 3840×2160 PNG clipboard readback checks.
+- Keep the previous dock, paste, auto-clicker, screenshot and Settings features.
+- Windows remains at v5, available in release v1.0.0.
+- Target x86-64 X11/glibc desktops; this is not an ARM/musl/Wayland build.
+
 ## v1.0.0 — Initial repository release — 2026-09-11
 
 Packages: **Windows v5**, **Linux v4 (Kali x86-64)**.
@@ -78,7 +91,7 @@ stages below are reconstructed from the project history, not separate Git tags.
 ## Known limits
 
 - Unicode paste deliberately skips all non-ASCII characters; see README.
-- Linux binary requires glibc 2.42+ and X11. Older systems need a local build.
+- Portable Linux binary requires glibc 2.31+ and X11. Legacy v1.0.0 requires 2.42+.
 - Secure/exclusive desktop surfaces may cover overlays or block screen capture.
 - A screenshot cannot exceed the detail present in the source screen pixels.
 - Versions in historical filenames are local build revisions, not semantic API

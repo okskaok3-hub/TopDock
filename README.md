@@ -17,8 +17,8 @@ Open [Releases](https://github.com/okskaok3-hub/TopDock/releases) for the curren
 | Edition | Current package | Requirements |
 | --- | --- | --- |
 | Windows | `TopDock-Windows-v5.zip` | Windows x64; Python/.NET installation not needed |
-| Linux | `TopDock-Linux-Kali-v4-x86_64.tar.gz` | x86-64, glibc 2.42+, X11 desktop; built/tested on Kali 2026.2 |
-| Other Linux distributions | Build from source | Python 3, Tk, X11 and the system tools listed below |
+| Linux portable | [TopDock-Linux-x86_64](https://github.com/okskaok3-hub/TopDock/releases/download/v1.1.0/TopDock-Linux-x86_64) | x86-64, glibc 2.31+, X11 desktop; Python/Tk and helpers bundled |
+| Other Linux architectures | Build from source | Python 3, Tk, X11 and the system tools listed below |
 
 The first repository release is **v1.0.0**. The package suffixes `v5` and `v4`
 retain the original platform-specific build numbers. See [CHANGELOG.md](CHANGELOG.md)
@@ -81,20 +81,19 @@ See [Windows guide](docs/WINDOWS.md).
 
 ## Linux quick start
 
-For the packaged Kali build, install the desktop utilities:
+Download the single `TopDock-Linux-x86_64` executable from Releases. No installer
+or `.sh` launcher is required:
 
 ```bash
-sudo apt install wmctrl x11-utils xclip scrot
-tar -xzf TopDock-Linux-Kali-v4-x86_64.tar.gz
-cd TopDock-Linux-Kali-x86_64
-chmod +x TopDock-VDI
-./TopDock-VDI --check
-./TopDock-VDI
+chmod +x TopDock-Linux-x86_64
+./TopDock-Linux-x86_64
 ```
 
 Run as your normal desktop user in an X11 session. SSH alone does not create a
-visible desktop connection. The bundled binary is not a universal Linux binary:
-on distributions with older glibc, build locally instead.
+visible desktop connection. This portable binary targets glibc 2.31+ x86-64
+desktops, not ARM, Alpine/musl, or native Wayland. It extracts bundled files to
+a temporary directory at launch; that location must allow execution.
+The older Kali-specific package remains available in release v1.0.0.
 
 Source installation on Debian/Ubuntu/Kali:
 
