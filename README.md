@@ -16,11 +16,11 @@ Open [Releases](https://github.com/okskaok3-hub/TopDock/releases) for the curren
 
 | Edition | Current package | Requirements |
 | --- | --- | --- |
-| Windows portable | [TopDock-Windows-v5.zip](https://github.com/okskaok3-hub/TopDock/releases/download/v1.1.0/TopDock-Windows-v5.zip) | Windows x64; Python/.NET installation not needed |
-| Linux portable | [TopDock-Linux-x86_64](https://github.com/okskaok3-hub/TopDock/releases/download/v1.1.0/TopDock-Linux-x86_64) | x86-64, glibc 2.31+, X11 desktop; Python/Tk and helpers bundled |
+| Windows portable | [TopDock-Windows-x64.exe](https://github.com/okskaok3-hub/TopDock/releases/download/v1.2.0/TopDock-Windows-x64.exe) | Windows x64; Python/.NET installation not needed |
+| Linux portable | [TopDock-Linux-x86_64](https://github.com/okskaok3-hub/TopDock/releases/download/v1.2.0/TopDock-Linux-x86_64) | x86-64, glibc 2.31+, X11 desktop; Python/Tk and helpers bundled |
 | Other Linux architectures | Build from source | Python 3, Tk, X11 and the system tools listed below |
 
-**[v1.1.0](https://github.com/okskaok3-hub/TopDock/releases/tag/v1.1.0)** includes
+**[v1.2.0](https://github.com/okskaok3-hub/TopDock/releases/tag/v1.2.0)** includes
 both portable editions and SHA-256 checksums. Download the platform asset, not
 the automatically generated source archives.
 
@@ -36,8 +36,12 @@ for how the Windows and Linux versions developed.
 - **SHOT:** drag any desktop region and copy its image to the host clipboard.
 - Lossless screenshots at original pixel dimensions; a 4K selection stays 4K.
 - **AUTO / AREA:** toggle the built-in auto-clicker and select its click area.
-- **START / PIN:** enable login startup or keep the dock visible.
+- **Settings:** login startup, Pin, Search and version information.
 - Settings and creator credit.
+- Draggable dock and a Settings action that collapses it into a movable circle.
+- One AUTO control; select or change its click area in Settings.
+- Clipboard text and PNG image preview with zoom controls.
+- Search, Pin, Startup, and version information in Settings.
 
 ### Text fidelity
 
@@ -65,10 +69,10 @@ Windows selection spans the virtual desktop, including multiple monitors.
 
 ## Windows quick start
 
-1. Download and extract `TopDock-Windows-v5.zip` from Releases.
-2. Run `TopDock.exe` from the extracted folder.
+1. Download `TopDock-Windows-x64.exe` from Releases to a permanent folder.
+2. Run the executable.
 3. Move the pointer to the top edge or press `Ctrl+Alt+Space`.
-4. Use START or Settings to enable Windows startup if wanted.
+4. Use Settings to enable Windows startup if wanted.
 
 The executable includes the .NET runtime and native WPF libraries. Only one
 Windows TopDock instance runs at a time. Exit the old instance from the tray
@@ -124,7 +128,7 @@ See [Linux guide](LINUX.md) and [build and testing guide](docs/BUILDING.md).
 | Reveal | Top 14px or Ctrl+Alt+Space | Top edge or Ctrl+Alt+Space |
 | Switch | Click card; Alt+1…9 while focused | Click card; Alt+1…9 while focused |
 | Browse overflow | Slider or wheel | Slider or wheel; arrow keys on slider |
-| Search windows | Search button / Ctrl+F | Not implemented |
+| Search windows | Settings / Ctrl+F | Settings |
 | Close another window | Middle-click card | Not implemented |
 | Capture | SHOT; full virtual desktop selector | SHOT; X11 desktop selector |
 | VDI detection | Citrix / Remote Desktop | Citrix / Remmina / FreeRDP / Horizon |

@@ -56,6 +56,11 @@ with `sudo`; that can disconnect it from your clipboard and display session.
 
 ## Controls
 
+- Drag the logo to move the dock. In Settings, collapse it to a circular icon;
+  drag the icon to move it and click to restore the dock.
+- AUTO toggles the clicker; select its area in Settings.
+- CLIP previews host clipboard text or PNG images with zoom controls.
+- Search applications, Pin, Startup and version are in Settings.
 - Move the pointer to the top edge or press `Ctrl+Alt+Space` to reveal TopDock.
 - Select an application card to switch windows. Cards show application names,
   not full document titles. Drag the slim horizontal slider below the cards (or
@@ -75,8 +80,7 @@ with `sudo`; that can disconnect it from your clipboard and display session.
 - Select **AREA** and drag a rectangle to configure the auto-clicker.
 - Select **AUTO** to toggle clicking. TopDock pauses clicks whenever the active
   window is not Citrix, Remmina, FreeRDP, or VMware Horizon.
-- Select **START** to enable or disable login startup.
-- Select **PIN** to keep the dock open.
+- Use **Settings** to enable login startup or keep the dock open.
 - Select **SETTINGS** for controls, Exit, and “Made with love by Aditya Rathee”.
 - Cards occupy a fixed 44-pixel row, with a separate subtle slider underneath.
 

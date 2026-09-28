@@ -2,9 +2,9 @@
 
 ## Install and update
 
-Download `TopDock-Windows-v5.zip` from Releases and extract it to a permanent
-folder. Run `TopDock.exe`. No installer or separate .NET runtime is required.
-Use START or Settings to register login startup. If you move the executable,
+Download `TopDock-Windows-x64.exe` from Releases into a permanent folder and
+run it. No installer or separate .NET runtime is required.
+Use Settings to register login startup. If you move the executable,
 disable and re-enable startup so it points to the new location.
 
 To update, exit TopDock from the notification-area menu, replace the extracted
@@ -21,8 +21,10 @@ two copies simultaneously.
 - PASTE: capture local clipboard text, focus Citrix/Remote Desktop, then type.
 - SHOT: drag a rectangle anywhere on the virtual desktop. Escape/right-click
   cancels. Copy original pixels as PNG and bitmap.
-- AUTO: toggle clicking. Adjacent AREA gear: select the saved click area.
-- START: toggle login startup. PIN: keep open. Settings: options and Exit.
+- AUTO: click to toggle; its area is selected in Settings.
+- CLIP: preview host clipboard text or an image and change its zoom level.
+- Drag the logo to move the dock. Settings can collapse it to a draggable circle.
+- Settings: search, Pin, login Startup, version number, and Exit.
 
 ## Configuration
 

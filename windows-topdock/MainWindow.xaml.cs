@@ -15,7 +15,7 @@ namespace TopDock;
 public partial class MainWindow : Window
 {
     private const double DockWindowHeight = 92;
-    private const double SettingsWindowHeight = 500;
+    private const double SettingsWindowHeight = 600;
     private const int HotkeyId = 0x5444;
     private const uint ModAlt = 0x0001;
     private const uint ModControl = 0x0002;
@@ -42,6 +42,16 @@ public partial class MainWindow : Window
     private DateTime _lastTopmostPush = DateTime.MinValue;
     private IntPtr _lastExternalForeground;
     private bool _captureBusy;
+    private bool _collapsed;
+    private bool _dragging;
+    private bool _circleDragging;
+    private System.Drawing.Point _dragOrigin;
+    private double _dragLeft;
+    private double _dragTop;
+    private double? _customTop;
+    private double? _customLeft;
+    private double _clipboardFontSize = 12;
+    private double _clipboardImageScale = 1;
 
     public MainWindow()
     {
@@ -61,6 +71,7 @@ public partial class MainWindow : Window
         UpdateAutoClickerAppearance();
         ApplyCompactMode();
         PasteButton.ToolTip = $"Type the host clipboard into VDI ({HostClipboardTyper.SettingsDescription})";
+        VersionText.Text = "Version 1.2.0";
 
         _trayIcon = new Forms.NotifyIcon
         {
@@ -155,6 +166,7 @@ public partial class MainWindow : Window
     private void TrackPointer()
     {
         if (_captureBusy) return;
+        if (_collapsed || _dragging) return;
         var foreground = WindowService.ForegroundWindow;
         if (foreground != IntPtr.Zero && foreground != _handle)
             _lastExternalForeground = foreground;
@@ -163,7 +175,7 @@ public partial class MainWindow : Window
         var currentScreen = Forms.Screen.FromPoint(cursor);
         // Full-screen Citrix sessions often reserve or capture the first few rows.
         // A 14 px activation band remains easy to reach while still being unobtrusive.
-        var atTopEdge = cursor.Y <= currentScreen.Bounds.Top + 14;
+        var atTopEdge = _customTop is null && cursor.Y <= currentScreen.Bounds.Top + 14;
 
         if (atTopEdge)
         {
@@ -174,7 +186,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (!_isShown || _settings.Pinned || SettingsPanel.Visibility == Visibility.Visible || SearchPanel.Visibility == Visibility.Visible)
+        if (!_isShown || _settings.Pinned || SettingsPanel.Visibility == Visibility.Visible || SearchPanel.Visibility == Visibility.Visible || ClipboardPanel.Visibility == Visibility.Visible)
             return;
 
         var scale = GetScale();
@@ -195,10 +207,11 @@ public partial class MainWindow : Window
     private void PositionForScreen(Forms.Screen screen, bool animate)
     {
         _screen = screen;
+        if (_collapsed) return;
         var scale = GetScale();
         var screenWidthDip = screen.Bounds.Width / scale.X;
         Width = Math.Clamp(screenWidthDip - 48, 760, 1240);
-        Left = screen.Bounds.Left / scale.X + (screenWidthDip - Width) / 2;
+        Left = _customLeft ?? screen.Bounds.Left / scale.X + (screenWidthDip - Width) / 2;
 
         if (!animate)
             Top = _isShown ? GetShownTop() : GetHiddenTop();
@@ -215,18 +228,19 @@ public partial class MainWindow : Window
     private double GetShownTop()
     {
         var scale = GetScale();
-        return (_screen?.Bounds.Top ?? 0) / scale.Y + 6;
+        return _customTop ?? (_screen?.Bounds.Top ?? 0) / scale.Y + 6;
     }
 
     private double GetHiddenTop()
     {
         var scale = GetScale();
-        return (_screen?.Bounds.Top ?? 0) / scale.Y - ActualHeight + 3;
+        return GetShownTop() - ActualHeight + 3;
     }
 
     private void Reveal(bool force = false)
     {
         if (_captureBusy) return;
+        if (_collapsed) ExpandDock();
         PromoteToTopmost(force: true);
         if (_isShown && !force) return;
         _isShown = true;
@@ -258,6 +272,7 @@ public partial class MainWindow : Window
 
     private void HideDock(bool immediate = false)
     {
+        if (_collapsed) return;
         if (_settings.Pinned && !immediate) return;
         CloseOverlays(clearSearch: true);
         _isShown = false;
@@ -400,7 +415,7 @@ public partial class MainWindow : Window
     {
         if (_autoClicker.SelectedArea is null)
         {
-            ShowTransientStatus("Select an auto-click area with the adjacent gear first");
+            SelectAutoClickArea();
             return;
         }
 
@@ -452,19 +467,11 @@ public partial class MainWindow : Window
             Reveal(force: true);
     }
 
-    private void StartupButton_Click(object sender, RoutedEventArgs e)
-    {
-        SetStartupState(!_settings.RunAtStartup);
-        StartupCheck.IsChecked = _settings.RunAtStartup;
-        ShowTransientStatus(_settings.RunAtStartup
-            ? "TopDock will start with Windows"
-            : "Windows startup disabled");
-    }
-
     private void ShowSearch()
     {
         Reveal(force: true);
         SettingsPanel.Visibility = Visibility.Collapsed;
+        ClipboardPanel.Visibility = Visibility.Collapsed;
         SearchPanel.Visibility = Visibility.Visible;
         SearchBox.Focus();
         Keyboard.Focus(SearchBox);
@@ -476,22 +483,9 @@ public partial class MainWindow : Window
         ApplyFilter();
     }
 
-    private void PinButton_Click(object sender, RoutedEventArgs e)
-    {
-        _settings.Pinned = !_settings.Pinned;
-        KeepOpenCheck.IsChecked = _settings.Pinned;
-        SaveSettings();
-        UpdatePinAppearance();
-        if (_settings.Pinned) Reveal(force: true);
-    }
-
     private void UpdatePinAppearance()
     {
-        PinButton.Content = _settings.Pinned ? "\uE77A" : "\uE718";
-        PinButton.ToolTip = _settings.Pinned ? "Auto-hide TopDock" : "Keep TopDock open";
-        PinButton.Background = _settings.Pinned
-            ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(48, 200, 0, 223))
-            : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(15, 255, 255, 255));
+        KeepOpenCheck.IsChecked = _settings.Pinned;
     }
 
     private void SettingsButton_Click(object sender, RoutedEventArgs e) => ShowSettings();
@@ -500,6 +494,7 @@ public partial class MainWindow : Window
     {
         Reveal(force: true);
         SearchPanel.Visibility = Visibility.Collapsed;
+        ClipboardPanel.Visibility = Visibility.Collapsed;
         SettingsPanel.Visibility = Visibility.Visible;
         Height = SettingsWindowHeight;
     }
@@ -536,21 +531,14 @@ public partial class MainWindow : Window
 
     private void UpdateStartupAppearance()
     {
-        StartupButton.Content = _settings.RunAtStartup ? "START ✓" : "STARTUP";
-        StartupButton.ToolTip = _settings.RunAtStartup
-            ? "TopDock starts with Windows — click to disable"
-            : "Start TopDock with Windows";
-        StartupButton.Background = new System.Windows.Media.SolidColorBrush(
-            _settings.RunAtStartup
-                ? System.Windows.Media.Color.FromArgb(48, 22, 163, 74)
-                : System.Windows.Media.Color.FromArgb(15, 255, 255, 255));
+        StartupCheck.IsChecked = _settings.RunAtStartup;
     }
 
     private void UpdateAutoClickerAppearance()
     {
         AutoClickLabel.Text = _autoClicker.IsEnabled ? "ON" : "OFF";
         AutoClickButton.ToolTip = _autoClicker.SelectedArea is null
-            ? "Select an area with the adjacent gear before turning AUTO on"
+            ? "Click to select an auto-click area"
             : $"Auto clicker {(_autoClicker.IsEnabled ? "ON" : "OFF")} — {_autoClicker.DelayDescription}";
         AutoClickButton.Background = new System.Windows.Media.SolidColorBrush(
             _autoClicker.IsEnabled
@@ -562,11 +550,157 @@ public partial class MainWindow : Window
             _autoClicker.IsEnabled
                 ? System.Windows.Media.Color.FromArgb(88, 22, 163, 74)
                 : System.Windows.Media.Color.FromArgb(28, 255, 255, 255));
-        AreaButton.ToolTip = $"Select auto-click area — {_autoClicker.AreaDescription}";
-        AreaButton.Background = new System.Windows.Media.SolidColorBrush(
-            _autoClicker.SelectedArea is not null
-                ? System.Windows.Media.Color.FromArgb(26, 139, 92, 246)
-                : System.Windows.Media.Color.FromArgb(15, 255, 255, 255));
+    }
+
+    private void DragHandle_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (_collapsed) return;
+        _dragging = true;
+        _dragOrigin = Forms.Cursor.Position;
+        _dragLeft = Left;
+        _dragTop = Top;
+        BeginAnimation(TopProperty, null);
+        ((UIElement)sender).CaptureMouse();
+        e.Handled = true;
+    }
+
+    private void DragHandle_MouseMove(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        if (!_dragging) return;
+        var pointer = Forms.Cursor.Position;
+        var scale = GetScale();
+        var area = Forms.Screen.FromPoint(pointer).WorkingArea;
+        _customLeft = Left = Math.Clamp(_dragLeft + (pointer.X - _dragOrigin.X) / scale.X,
+            area.Left / scale.X, Math.Max(area.Left / scale.X, area.Right / scale.X - Width));
+        _customTop = Top = Math.Clamp(_dragTop + (pointer.Y - _dragOrigin.Y) / scale.Y,
+            area.Top / scale.Y, Math.Max(area.Top / scale.Y, area.Bottom / scale.Y - DockWindowHeight));
+        _isShown = true;
+    }
+
+    private void DragHandle_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        _dragging = false;
+        ((UIElement)sender).ReleaseMouseCapture();
+    }
+
+    private void CollapseButton_Click(object sender, RoutedEventArgs e)
+    {
+        CloseOverlays(clearSearch: true);
+        BeginAnimation(TopProperty, null);
+        _customLeft = Left;
+        _customTop = Top;
+        _collapsed = true;
+        DockSurface.Visibility = Visibility.Collapsed;
+        CircleSurface.Visibility = Visibility.Visible;
+        Width = 72;
+        Height = 72;
+        _isShown = true;
+    }
+
+    private void ExpandDock()
+    {
+        _collapsed = false;
+        CircleSurface.Visibility = Visibility.Collapsed;
+        DockSurface.Visibility = Visibility.Visible;
+        Height = DockWindowHeight;
+        PositionForScreen(Forms.Screen.FromPoint(Forms.Cursor.Position), animate: false);
+    }
+
+    private void CircleButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (!_circleDragging) Reveal(force: true);
+        _circleDragging = false;
+    }
+
+    private void CircleButton_MouseDown(object sender, MouseButtonEventArgs e)
+    {
+        _dragOrigin = Forms.Cursor.Position;
+        _dragLeft = Left;
+        _dragTop = Top;
+        _circleDragging = false;
+    }
+
+    private void CircleButton_MouseMove(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        if (e.LeftButton != MouseButtonState.Pressed || !_collapsed) return;
+        var pointer = Forms.Cursor.Position;
+        if (Math.Abs(pointer.X - _dragOrigin.X) + Math.Abs(pointer.Y - _dragOrigin.Y) < 5 && !_circleDragging) return;
+        _circleDragging = true;
+        var scale = GetScale();
+        var area = Forms.Screen.FromPoint(pointer).WorkingArea;
+        _customLeft = Left = Math.Clamp(_dragLeft + (pointer.X - _dragOrigin.X) / scale.X,
+            area.Left / scale.X, Math.Max(area.Left / scale.X, area.Right / scale.X - Width));
+        _customTop = Top = Math.Clamp(_dragTop + (pointer.Y - _dragOrigin.Y) / scale.Y,
+            area.Top / scale.Y, Math.Max(area.Top / scale.Y, area.Bottom / scale.Y - Height));
+    }
+
+    private void CircleButton_MouseUp(object sender, MouseButtonEventArgs e)
+    {
+        if (_circleDragging)
+        {
+            CircleButton.ReleaseMouseCapture();
+            e.Handled = true;
+        }
+    }
+
+    private void ClipboardButton_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (System.Windows.Clipboard.ContainsImage())
+            {
+                var image = System.Windows.Clipboard.GetImage();
+                ClipboardImagePreview.Source = image;
+                ClipboardImageScroller.Visibility = Visibility.Visible;
+                ClipboardPreview.Visibility = Visibility.Collapsed;
+                _clipboardImageScale = image is null ? 1 : Math.Min(1, Math.Min(400 / image.Width, 240 / image.Height));
+                SetClipboardZoom(_clipboardFontSize);
+            }
+            else
+            {
+                ClipboardPreview.Text = System.Windows.Clipboard.ContainsText()
+                    ? System.Windows.Clipboard.GetText(System.Windows.TextDataFormat.UnicodeText)
+                    : "Clipboard has no text or image to preview.";
+                ClipboardPreview.Visibility = Visibility.Visible;
+                ClipboardImageScroller.Visibility = Visibility.Collapsed;
+                ClipboardZoomText.Text = $"{_clipboardFontSize / 12:P0}";
+            }
+        }
+        catch
+        {
+            ClipboardPreview.Text = "Clipboard is temporarily unavailable.";
+            ClipboardPreview.Visibility = Visibility.Visible;
+            ClipboardImageScroller.Visibility = Visibility.Collapsed;
+        }
+        SettingsPanel.Visibility = Visibility.Collapsed;
+        SearchPanel.Visibility = Visibility.Collapsed;
+        ClipboardPanel.Visibility = Visibility.Visible;
+        Height = 400;
+        Reveal(force: true);
+    }
+
+    private void ClipboardZoomIn_Click(object sender, RoutedEventArgs e) => SetClipboardZoom(ClipboardImageScroller.Visibility == Visibility.Visible ? _clipboardImageScale * 1.25 : _clipboardFontSize + 2);
+    private void ClipboardZoomOut_Click(object sender, RoutedEventArgs e) => SetClipboardZoom(ClipboardImageScroller.Visibility == Visibility.Visible ? _clipboardImageScale / 1.25 : _clipboardFontSize - 2);
+    private void SetClipboardZoom(double size)
+    {
+        if (ClipboardImageScroller.Visibility == Visibility.Visible)
+        {
+            _clipboardImageScale = Math.Clamp(size, 0.1, 4);
+            ClipboardImagePreview.LayoutTransform = new System.Windows.Media.ScaleTransform(_clipboardImageScale, _clipboardImageScale);
+            ClipboardZoomText.Text = $"{_clipboardImageScale:P0}";
+        }
+        else
+        {
+            _clipboardFontSize = Math.Clamp(size, 10, 32);
+            ClipboardPreview.FontSize = _clipboardFontSize;
+            ClipboardZoomText.Text = $"{_clipboardFontSize / 12:P0}";
+        }
+    }
+
+    private void CloseClipboard_Click(object sender, RoutedEventArgs e)
+    {
+        ClipboardPanel.Visibility = Visibility.Collapsed;
+        Height = DockWindowHeight;
     }
 
     private async void ShowTransientStatus(string message)
@@ -646,6 +780,7 @@ public partial class MainWindow : Window
     {
         SettingsPanel.Visibility = Visibility.Collapsed;
         SearchPanel.Visibility = Visibility.Collapsed;
+        ClipboardPanel.Visibility = Visibility.Collapsed;
         Height = DockWindowHeight;
         if (clearSearch) SearchBox.Clear();
     }

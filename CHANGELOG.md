@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.2.0 — Compact controls and movable overlay — 2026-09-28
+
+- Combine auto-clicker controls into one AUTO action on both platforms. It opens
+  area selection when no area has been saved; Settings can change the area.
+- Add a local clipboard text and PNG image preview with zoom controls.
+- Make the dock draggable and let Settings collapse it into a movable circle.
+  Linux uses the X11 Shape extension for the circular overlay.
+- Move Pin, Search and Startup out of the quick-action row and into Settings.
+  Linux gains application-name search in Settings.
+- Display version 1.2.0 in Settings and publish direct Windows and Linux
+  executables in one release.
+
 ## v1.1.0 — Portable Linux executable — 2026-09-14
 
 - Provide a single downloadable `TopDock-Linux-x86_64` ELF executable, without

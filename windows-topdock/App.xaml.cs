@@ -9,6 +9,12 @@ public partial class App : System.Windows.Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        if (e.Args.Contains("--version", StringComparer.OrdinalIgnoreCase))
+        {
+            Console.WriteLine($"TopDock {typeof(App).Assembly.GetName().Version?.ToString(3)}");
+            Shutdown(0);
+            return;
+        }
         if (e.Args.Contains("--content-test", StringComparer.OrdinalIgnoreCase))
         {
             ContentChecks.Run();

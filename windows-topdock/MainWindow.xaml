@@ -150,11 +150,14 @@
                     <ColumnDefinition Width="1"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="1"/>
-                    <ColumnDefinition Width="448"/>
+                    <ColumnDefinition Width="270"/>
                 </Grid.ColumnDefinitions>
 
                 <!-- Section 1: identity and live context -->
-                <Grid Grid.Column="0" Margin="5,0,10,0">
+                <Grid Grid.Column="0" Margin="5,0,10,0" Background="Transparent"
+                      MouseLeftButtonDown="DragHandle_MouseLeftButtonDown"
+                      MouseMove="DragHandle_MouseMove" MouseLeftButtonUp="DragHandle_MouseLeftButtonUp"
+                      ToolTip="Drag to move TopDock">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="38"/>
                         <ColumnDefinition Width="*"/>
@@ -280,9 +283,6 @@
                         <ColumnDefinition Width="54"/>
                         <ColumnDefinition Width="60"/>
                         <ColumnDefinition Width="44"/>
-                        <ColumnDefinition Width="78"/>
-                        <ColumnDefinition Width="46"/>
-                        <ColumnDefinition Width="46"/>
                         <ColumnDefinition Width="46"/>
                     </Grid.ColumnDefinitions>
                     <Button x:Name="PasteButton" Grid.Column="0" Style="{StaticResource IconButton}" Width="58"
@@ -314,19 +314,23 @@
                                        FontWeight="Bold" Margin="0,1,0,0" HorizontalAlignment="Center"/>
                         </StackPanel>
                     </Button>
-                    <Button x:Name="AreaButton" Grid.Column="3" Style="{StaticResource IconButton}" Content="&#xE713;"
-                            ToolTip="Select the auto-click area" Click="AreaButton_Click"/>
-                    <Button x:Name="StartupButton" Grid.Column="4" Style="{StaticResource IconButton}" Width="74"
-                            FontFamily="Segoe UI Variable Text" FontSize="9" FontWeight="SemiBold" Content="STARTUP"
-                            ToolTip="Start TopDock with Windows" Click="StartupButton_Click"/>
-                    <Button x:Name="SearchButton" Grid.Column="5" Style="{StaticResource IconButton}" Content="&#xE721;"
-                            ToolTip="Search windows (Ctrl+F)" Click="SearchButton_Click"/>
-                    <Button x:Name="PinButton" Grid.Column="6" Style="{StaticResource IconButton}" Content="&#xE718;"
-                            ToolTip="Keep TopDock open" Click="PinButton_Click"/>
-                    <Button x:Name="SettingsButton" Grid.Column="7" Style="{StaticResource IconButton}" Content="&#xE713;"
+                    <Button x:Name="ClipboardButton" Grid.Column="3" Style="{StaticResource IconButton}" Content="&#xE8A7;"
+                            ToolTip="Preview and zoom clipboard" Click="ClipboardButton_Click"/>
+                    <Button x:Name="SettingsButton" Grid.Column="4" Style="{StaticResource IconButton}" Content="&#xE713;"
                             ToolTip="Settings" Click="SettingsButton_Click"/>
                 </Grid>
             </Grid>
+        </Border>
+
+        <Border x:Name="CircleSurface" Visibility="Collapsed" Width="52" Height="52"
+                HorizontalAlignment="Center" VerticalAlignment="Top" CornerRadius="26"
+                Background="#FFE20ACF" BorderBrush="#77FFFFFF" BorderThickness="1">
+            <Button x:Name="CircleButton" Content="⌃" FontSize="27" FontWeight="Bold" Foreground="White"
+                    Background="Transparent" BorderThickness="0" Cursor="Hand"
+                    ToolTip="Open TopDock. Drag to move." Click="CircleButton_Click"
+                    PreviewMouseLeftButtonDown="CircleButton_MouseDown"
+                    PreviewMouseMove="CircleButton_MouseMove"
+                    PreviewMouseLeftButtonUp="CircleButton_MouseUp"/>
         </Border>
 
         <!-- Search overlay -->
@@ -373,10 +377,13 @@
                           Margin="0,7" Checked="StartupCheck_Changed" Unchecked="StartupCheck_Changed"/>
                 <CheckBox x:Name="CompactCheck" Content="Compact window cards" Foreground="{StaticResource Ink}"
                           Margin="0,7" Checked="CompactCheck_Changed" Unchecked="CompactCheck_Changed"/>
+                <Button Content="Search open windows" Click="SearchButton_Click" Margin="0,8,0,0" Padding="8,6"/>
+                <Button Content="Set auto-click area" Click="AreaButton_Click" Margin="0,6,0,0" Padding="8,6"/>
+                <Button Content="Collapse to circle" Click="CollapseButton_Click" Margin="0,6,0,0" Padding="8,6"/>
                 <Border Height="1" Background="#20FFFFFF" Margin="0,12"/>
                 <TextBlock Text="Ctrl + Alt + Space  ·  Show TopDock" Foreground="{StaticResource Muted}" FontSize="11"/>
                 <TextBlock Text="PASTE  ·  Type host clipboard into VDI" Foreground="{StaticResource Muted}" FontSize="11" Margin="0,6,0,0"/>
-                <TextBlock Text="AUTO + gear  ·  Toggle and select click area" Foreground="{StaticResource Muted}" FontSize="11" Margin="0,6,0,0"/>
+                <TextBlock Text="AUTO  ·  Click to toggle; select area in Settings" Foreground="{StaticResource Muted}" FontSize="11" Margin="0,6,0,0"/>
                 <TextBlock Text="SHOT  ·  Drag any screen area to copy it" Foreground="{StaticResource Muted}" FontSize="11" Margin="0,6,0,0"/>
                 <TextBlock Text="Alt + 1…9  ·  Switch window" Foreground="{StaticResource Muted}" FontSize="11" Margin="0,6"/>
                 <TextBlock Text="Middle-click  ·  Close a window" Foreground="{StaticResource Muted}" FontSize="11"/>
@@ -385,7 +392,39 @@
                         Click="ExitButton_Click"/>
                 <TextBlock Text="Made with ♥ by Aditya Rathee" Foreground="#FFD8B4FE"
                            FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,14,0,0"/>
+                <TextBlock x:Name="VersionText" Foreground="{StaticResource Muted}" FontSize="10"
+                           HorizontalAlignment="Center" Margin="0,4,0,0"/>
             </StackPanel>
+        </Border>
+        <Border x:Name="ClipboardPanel" Visibility="Collapsed" Width="440" Height="300"
+                HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,78,0,0"
+                CornerRadius="18" Background="#FF1E222C" BorderBrush="#38FFFFFF"
+                BorderThickness="1" Padding="16">
+            <Grid>
+                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                    <TextBlock Text="Clipboard preview" Foreground="{StaticResource Ink}" FontSize="15"
+                               FontWeight="SemiBold" VerticalAlignment="Center" Width="230"/>
+                    <Button Content="−" Width="28" Click="ClipboardZoomOut_Click" ToolTip="Zoom out"/>
+                    <TextBlock x:Name="ClipboardZoomText" Text="100%" Foreground="{StaticResource Muted}"
+                               Width="48" TextAlignment="Center" VerticalAlignment="Center"/>
+                    <Button Content="+" Width="28" Click="ClipboardZoomIn_Click" ToolTip="Zoom in"/>
+                    <Button Content="×" Width="28" Margin="8,0,0,0" Click="CloseClipboard_Click" ToolTip="Close preview"/>
+                </StackPanel>
+                <Grid Grid.Row="1">
+                    <TextBox x:Name="ClipboardPreview" IsReadOnly="True" TextWrapping="NoWrap"
+                             VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                             FontFamily="Consolas" FontSize="12" Background="#FF15181F"
+                             Foreground="{StaticResource Ink}" BorderBrush="#38FFFFFF" Padding="8"/>
+                    <ScrollViewer x:Name="ClipboardImageScroller" Visibility="Collapsed"
+                                  HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                                  Background="#FF15181F">
+                        <Image x:Name="ClipboardImagePreview" Stretch="None"
+                               HorizontalAlignment="Left" VerticalAlignment="Top"
+                               RenderOptions.BitmapScalingMode="HighQuality"/>
+                    </ScrollViewer>
+                </Grid>
+            </Grid>
         </Border>
     </Grid>
 </Window>

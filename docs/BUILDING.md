@@ -21,9 +21,9 @@ startup crash; keep `IncludeNativeLibrariesForSelfExtract` enabled.
 On an x86-64 Linux machine with Docker, from the repository root:
 
 ```bash
-docker build -t topdock-portable:1.1 -f packaging/Dockerfile.portable .
+docker build -t topdock-portable:1.2 -f packaging/Dockerfile.portable .
 mkdir -p release/linux
-docker run --rm -v "$PWD/release/linux:/out" topdock-portable:1.1
+docker run --rm -v "$PWD/release/linux:/out" topdock-portable:1.2
 docker build -t topdock-portable-verify -f packaging/Dockerfile.verify .
 ```
 
@@ -72,6 +72,9 @@ not a fully locked reproducible build environment.
 The v1.1.0 portable binary passed startup/window creation on Ubuntu 20.04,
 dependency and 4K clipboard checks on clean Ubuntu 22.04, and 4K clipboard
 checks on Kali. These tests used isolated Xvfb displays, not live VDI sessions.
+The v1.2.0 binary passed those packaged checks again. The Linux desktop smoke
+test also covers Settings search, text and PNG clipboard previews, circle
+collapse/restore, and original resolution capture.
 
 ## Source structure
 

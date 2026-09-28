@@ -2,7 +2,9 @@
 """Premium auto-hiding TopDock for Linux/X11 VDI workflows."""
 
 from datetime import datetime
+from io import BytesIO
 import portable_runtime  # Make bundled X11 helpers available before other imports.
+import subprocess
 import sys
 import threading
 import time
@@ -18,6 +20,7 @@ from startup_diagnostics import check_required_modules, print_startup_report
 
 class LinuxTopDock:
     TITLE = "TopDock Linux"
+    VERSION = "1.2.0"
     HEIGHT = 76
     EDGE_HEIGHT = 4
 
@@ -54,6 +57,10 @@ class LinuxTopDock:
         self.settings_window = None
         self.ui_queue = SimpleQueue()
         self.card_slots = []
+        self.collapsed = False
+        self.drag_origin = None
+        self.search_query = ""
+        self.clipboard_window = None
 
         self._configure_window()
         self._build_ui()
@@ -107,6 +114,7 @@ class LinuxTopDock:
             highlightthickness=1,
         )
         outer.pack(fill="both", expand=True)
+        self.outer = outer
 
         content = tk.Frame(outer, bg=self.COLORS["background"])
         content.pack(fill="both", expand=True, padx=12, pady=8)
@@ -127,6 +135,10 @@ class LinuxTopDock:
             height=1,
         )
         logo.pack(side="left", padx=(0, 8))
+        for handle in (brand, logo):
+            handle.bind("<ButtonPress-1>", self._drag_start)
+            handle.bind("<B1-Motion>", self._drag_move)
+            handle.bind("<ButtonRelease-1>", self._drag_end)
 
         brand_text = tk.Frame(brand, bg=self.COLORS["background"])
         brand_text.pack(side="left", fill="y")
@@ -194,10 +206,14 @@ class LinuxTopDock:
         self.paste_button = self._tool_button(tools, "⎘\nPASTE", self.paste_clipboard, width=7)
         self.shot_button = self._tool_button(tools, "⌖\nSHOT", self.select_screenshot_area, width=6)
         self.auto_button = self._tool_button(tools, "◎\nAUTO OFF", self.toggle_clicker, width=8)
-        self.area_button = self._tool_button(tools, "⚙\nAREA", self.select_click_area, width=6)
-        self.startup_button = self._tool_button(tools, "START", self.toggle_startup, width=7)
-        self.pin_button = self._tool_button(tools, "PIN", self.toggle_pin, width=5)
+        self.clipboard_button = self._tool_button(tools, "▣\nCLIP", self.show_clipboard_preview, width=6)
         self._tool_button(tools, "⚙\nSETTINGS", self.show_settings, width=7)
+        self.circle = tk.Button(self.root, text="⌃", command=self.expand_dock,
+            bg=self.COLORS["primary"], fg="white", activebackground=self.COLORS["primary_dark"],
+            activeforeground="white", relief="flat", bd=0, font=("Inter", 24, "bold"), cursor="hand2")
+        self.circle.bind("<ButtonPress-1>", self._drag_start, add="+")
+        self.circle.bind("<B1-Motion>", self._drag_move, add="+")
+        self.circle.bind("<ButtonRelease-1>", self._drag_end, add="+")
         self._update_control_states()
 
     def _separator(self, parent):
@@ -234,6 +250,159 @@ class LinuxTopDock:
         button.bind("<Leave>", lambda _event: button.configure(bg=normal))
         return button
 
+    def _drag_start(self, event):
+        self.drag_origin = (event.x_root, event.y_root, self.x, self.shown_y)
+        self.drag_moved = False
+
+    def _drag_move(self, event):
+        if not self.drag_origin:
+            return
+        px, py, start_x, start_y = self.drag_origin
+        if abs(event.x_root - px) + abs(event.y_root - py) < 4 and not self.drag_moved:
+            return
+        self.drag_moved = True
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
+        visible_width = 60 if self.collapsed else self.width
+        visible_height = 60 if self.collapsed else self.HEIGHT
+        self.x = max(0, min(screen_width - visible_width, start_x + event.x_root - px))
+        self.shown_y = max(0, min(screen_height - visible_height, start_y + event.y_root - py))
+        self.hidden_y = self.shown_y - (self.HEIGHT - self.EDGE_HEIGHT)
+        self.is_shown = True
+        self._set_geometry(self.shown_y)
+
+    def _drag_end(self, _event):
+        if self.collapsed and self.drag_moved:
+            self.circle.after_idle(lambda: self.circle.configure(command=self.expand_dock))
+        self.drag_origin = None
+
+    def collapse_dock(self):
+        if self.settings_window:
+            self.settings_window.destroy()
+            self.settings_window = None
+        self.collapsed = True
+        self.outer.pack_forget()
+        self.circle.pack(fill="both", expand=True)
+        self.root.geometry(f"60x60+{self.x}+{self.shown_y}")
+        self.root.update_idletasks()
+        self._shape_circle(True)
+        self.is_shown = True
+
+    def expand_dock(self):
+        if not self.collapsed or getattr(self, "drag_moved", False):
+            self.drag_moved = False
+            return
+        self.collapsed = False
+        self._shape_circle(False)
+        self.circle.pack_forget()
+        self.outer.pack(fill="both", expand=True)
+        self.x = max(0, min(self.x, self.root.winfo_screenwidth() - self.width))
+        self._set_geometry(self.shown_y)
+        self.reveal()
+
+    def _shape_circle(self, enabled):
+        """Use the X11 Shape extension so the compact window has no square corners."""
+        try:
+            import ctypes
+            import ctypes.util
+
+            x11 = ctypes.CDLL(ctypes.util.find_library("X11"))
+            xext = ctypes.CDLL(ctypes.util.find_library("Xext"))
+            x11.XOpenDisplay.argtypes = [ctypes.c_char_p]
+            x11.XOpenDisplay.restype = ctypes.c_void_p
+            x11.XCreateBitmapFromData.argtypes = [ctypes.c_void_p, ctypes.c_ulong,
+                ctypes.c_char_p, ctypes.c_uint, ctypes.c_uint]
+            x11.XCreateBitmapFromData.restype = ctypes.c_ulong
+            x11.XFreePixmap.argtypes = [ctypes.c_void_p, ctypes.c_ulong]
+            x11.XCloseDisplay.argtypes = [ctypes.c_void_p]
+            xext.XShapeCombineMask.argtypes = [ctypes.c_void_p, ctypes.c_ulong,
+                ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_ulong, ctypes.c_int]
+            display = x11.XOpenDisplay(None)
+            if not display:
+                return
+            try:
+                window_id = self.root.winfo_id()
+                mask = 0
+                if enabled:
+                    data = bytearray(60 * 8)
+                    for y in range(60):
+                        for x in range(60):
+                            if (x - 29.5) ** 2 + (y - 29.5) ** 2 <= 29.5 ** 2:
+                                data[y * 8 + x // 8] |= 1 << (x % 8)
+                    mask = x11.XCreateBitmapFromData(display, window_id, bytes(data), 60, 60)
+                xext.XShapeCombineMask(display, window_id, 0, 0, 0, mask, 0)
+                if mask:
+                    x11.XFreePixmap(display, mask)
+            finally:
+                x11.XCloseDisplay(display)
+        except (OSError, AttributeError):
+            pass
+
+    def show_clipboard_preview(self):
+        if self.clipboard_window and self.clipboard_window.winfo_exists():
+            self.clipboard_window.lift()
+            return
+        from PIL import Image, ImageTk
+        image = None
+        try:
+            selection = subprocess.run(["xclip", "-selection", "clipboard", "-t", "image/png", "-o"],
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=2)
+            if selection.returncode == 0 and selection.stdout:
+                image = Image.open(BytesIO(selection.stdout)).copy()
+        except (OSError, subprocess.TimeoutExpired, ValueError):
+            pass
+        try:
+            content = self.root.clipboard_get() if image is None else None
+        except tk.TclError:
+            content = "Clipboard has no text or PNG image to preview."
+        window = tk.Toplevel(self.root)
+        self.clipboard_window = window
+        window.title("Clipboard preview")
+        window.configure(bg=self.COLORS["background"])
+        window.geometry(f"500x350+{max(0, self.x + self.width - 500)}+{self.shown_y + self.HEIGHT + 8}")
+        window.attributes("-topmost", True)
+        header = tk.Frame(window, bg=self.COLORS["background"])
+        header.pack(fill="x", padx=14, pady=10)
+        tk.Label(header, text="Clipboard preview", bg=self.COLORS["background"],
+            fg=self.COLORS["text"], font=("Inter", 12, "bold")).pack(side="left")
+        size = {"value": 12}
+        zoom = tk.Label(header, text="100%", bg=self.COLORS["background"], fg=self.COLORS["muted"])
+        zoom.pack(side="right", padx=8)
+        text = None
+        canvas = None
+        if image is None:
+            text = tk.Text(window, bg=self.COLORS["surface"], fg=self.COLORS["text"],
+                insertbackground=self.COLORS["text"], font=("DejaVu Sans Mono", 12), wrap="none")
+            text.pack(fill="both", expand=True, padx=14, pady=(0, 14))
+            text.insert("1.0", content)
+            text.configure(state="disabled")
+        else:
+            canvas = tk.Canvas(window, bg=self.COLORS["surface"], highlightthickness=0)
+            canvas.pack(fill="both", expand=True, padx=14, pady=(0, 14))
+            scale = {"value": min(1, 450 / image.width, 260 / image.height)}
+            def redraw():
+                width = max(1, round(image.width * scale["value"]))
+                height = max(1, round(image.height * scale["value"]))
+                canvas.preview = ImageTk.PhotoImage(image.resize((width, height), Image.Resampling.LANCZOS))
+                canvas.delete("all")
+                canvas.create_image(0, 0, image=canvas.preview, anchor="nw")
+                canvas.configure(scrollregion=(0, 0, width, height))
+                zoom.configure(text=f"{round(scale['value'] * 100)}%")
+            redraw()
+            canvas.bind("<MouseWheel>", lambda e: canvas.yview_scroll(-1 if e.delta > 0 else 1, "units"))
+            canvas.bind("<Shift-MouseWheel>", lambda e: canvas.xview_scroll(-1 if e.delta > 0 else 1, "units"))
+        def adjust(delta):
+            if canvas is not None:
+                scale["value"] = max(0.1, min(4, scale["value"] * (1.25 if delta > 0 else 0.8)))
+                redraw()
+            else:
+                size["value"] = max(10, min(32, size["value"] + delta))
+                text.configure(font=("DejaVu Sans Mono", size["value"]))
+                zoom.configure(text=f"{round(size['value'] / 12 * 100)}%")
+        tk.Button(header, text="+", width=3, command=lambda: adjust(2)).pack(side="right")
+        tk.Button(header, text="−", width=3, command=lambda: adjust(-2)).pack(side="right")
+        window.protocol("WM_DELETE_WINDOW", lambda: (window.destroy(), setattr(self, "clipboard_window", None)))
+
     def _finish_window_setup(self):
         self.root.lift()
         self.window_service.apply_overlay_hints(self.root.winfo_id())
@@ -264,6 +433,9 @@ class LinuxTopDock:
     def _refresh_windows(self, schedule=True):
         scroll_position = self.window_canvas.xview()[0]
         self.windows = self.window_service.list_windows()
+        if self.search_query:
+            query = self.search_query.casefold()
+            self.windows = [item for item in self.windows if query in item.application.casefold()]
         self.card_slots = []
         for widget in self.window_frame.winfo_children():
             widget.destroy()
@@ -535,10 +707,16 @@ class LinuxTopDock:
         self._set_status(result.message, "success" if result.success else "error", duration=7000)
 
     def select_click_area(self):
+        if self.settings_window and self.settings_window.winfo_exists():
+            self.settings_window.destroy()
+            self.settings_window = None
         self.hide()
         self.root.after(160, self.clicker.select_area)
 
     def toggle_clicker(self):
+        if not self.clicker.selection_coords:
+            self.select_click_area()
+            return
         running = self.clicker.toggle()
         self._update_control_states()
         if running:
@@ -562,9 +740,30 @@ class LinuxTopDock:
         window.configure(bg=self.COLORS["background"])
         window.resizable(False, False)
         window.attributes("-topmost", True)
-        window.geometry(f"360x300+{max(0, self.x + self.width - 360)}+{self.HEIGHT + 8}")
+        window.geometry(f"380x420+{max(0, self.x + self.width - 380)}+{self.shown_y + self.HEIGHT + 8}")
         tk.Label(window, text="TopDock settings", font=("Inter", 14, "bold"),
             bg=self.COLORS["background"], fg=self.COLORS["text"]).pack(anchor="w", padx=20, pady=(20, 12))
+        tk.Label(window, text=f"Version {self.VERSION}", bg=self.COLORS["background"],
+            fg=self.COLORS["muted"], font=("Inter", 9)).pack(anchor="w", padx=20)
+        pinned = tk.BooleanVar(value=self.pinned)
+        tk.Checkbutton(window, text="Keep dock open", variable=pinned,
+            command=self.toggle_pin, bg=self.COLORS["background"], fg=self.COLORS["text"],
+            selectcolor=self.COLORS["surface"], activebackground=self.COLORS["background"]).pack(anchor="w", padx=20, pady=(10, 0))
+        startup = tk.BooleanVar(value=is_in_startup())
+        tk.Checkbutton(window, text="Start with Linux", variable=startup,
+            command=self.toggle_startup, bg=self.COLORS["background"], fg=self.COLORS["text"],
+            selectcolor=self.COLORS["surface"], activebackground=self.COLORS["background"]).pack(anchor="w", padx=20)
+        tk.Label(window, text="Search applications", bg=self.COLORS["background"],
+            fg=self.COLORS["muted"]).pack(anchor="w", padx=20, pady=(10, 0))
+        search = tk.Entry(window, bg=self.COLORS["surface"], fg=self.COLORS["text"],
+            insertbackground=self.COLORS["text"])
+        search.insert(0, self.search_query)
+        search.pack(fill="x", padx=20, pady=4)
+        search.bind("<KeyRelease>", lambda _e: self._search_from_settings(search.get()))
+        tk.Button(window, text="Set auto-click area", command=self.select_click_area,
+            bg=self.COLORS["surface"], fg=self.COLORS["text"], relief="flat").pack(fill="x", padx=20, pady=(8, 0))
+        tk.Button(window, text="Collapse to circle", command=self.collapse_dock,
+            bg=self.COLORS["surface"], fg=self.COLORS["text"], relief="flat").pack(fill="x", padx=20, pady=(6, 0))
         tk.Label(window, text="Ctrl + Alt + Space  ·  Reveal dock\nDrag the slider  ·  Browse applications\nSHOT  ·  Select any desktop area\nEscape / right-click  ·  Cancel capture",
             justify="left", font=("Inter", 10), bg=self.COLORS["background"], fg=self.COLORS["muted"]).pack(anchor="w", padx=20)
         tk.Label(window, text="Made with love by Aditya Rathee", font=("Inter", 10, "bold"),
@@ -586,6 +785,10 @@ class LinuxTopDock:
             callback()
         self.root.after(50, self._drain_ui_queue)
 
+    def _search_from_settings(self, query):
+        self.search_query = query.strip()
+        self._refresh_windows(schedule=False)
+
     def toggle_pin(self):
         self.pinned = not self.pinned
         self._update_control_states()
@@ -598,17 +801,6 @@ class LinuxTopDock:
                 text="◎\nAUTO ON" if running else "◎\nAUTO OFF",
                 fg=self.COLORS["success"] if running else self.COLORS["text"],
             )
-            self.area_button.configure(
-                fg=self.COLORS["primary"] if self.clicker.selection_coords else self.COLORS["text"]
-            )
-        self.startup_button.configure(
-            text="START ✓" if is_in_startup() else "START",
-            fg=self.COLORS["success"] if is_in_startup() else self.COLORS["text"],
-        )
-        self.pin_button.configure(
-            text="PIN ✓" if self.pinned else "PIN",
-            fg=self.COLORS["primary"] if self.pinned else self.COLORS["text"],
-        )
 
     def _module_status(self, message, message_type="info"):
         self.ui_queue.put(lambda: self._handle_module_status(message, message_type))
@@ -635,6 +827,9 @@ class LinuxTopDock:
         self.root.after(1000, self._update_clock)
 
     def _track_pointer(self):
+        if self.collapsed:
+            self.root.after(70, self._track_pointer)
+            return
         if self.capture_busy or self.settings_window:
             self.root.after(70, self._track_pointer)
             return
@@ -647,7 +842,7 @@ class LinuxTopDock:
         if pointer_y <= 2:
             self.reveal()
 
-        inside = self.x <= pointer_x <= self.x + self.width and 0 <= pointer_y <= self.HEIGHT + 4
+        inside = self.x <= pointer_x <= self.x + self.width and self.shown_y <= pointer_y <= self.shown_y + self.HEIGHT + 4
         if inside:
             self.last_inside = time.monotonic()
         elif self.is_shown and not self.pinned and time.monotonic() - self.last_inside > 0.8:
@@ -658,11 +853,17 @@ class LinuxTopDock:
     def reveal(self):
         if self.capture_busy:
             return
+        if self.collapsed:
+            self.drag_moved = False
+            self.expand_dock()
+            return
         self.is_shown = True
         self.last_inside = time.monotonic()
         self._animate_to(self.shown_y)
 
     def hide(self, force=False):
+        if self.collapsed:
+            return
         if self.pinned and not force:
             return
         self.is_shown = False
@@ -685,7 +886,8 @@ class LinuxTopDock:
 
     def _set_geometry(self, y):
         y_position = f"+{y}"
-        self.root.geometry(f"{self.width}x{self.HEIGHT}+{self.x}{y_position}")
+        width, height = (60, 60) if self.collapsed else (self.width, self.HEIGHT)
+        self.root.geometry(f"{width}x{height}+{self.x}{y_position}")
 
     def exit(self):
         try:
@@ -700,6 +902,9 @@ class LinuxTopDock:
 
 
 def main():
+    if "--version" in sys.argv:
+        print(f"TopDock {LinuxTopDock.VERSION}")
+        return 0
     if not IS_LINUX:
         print("Linux TopDock must be run from a Linux desktop session.")
         return 1

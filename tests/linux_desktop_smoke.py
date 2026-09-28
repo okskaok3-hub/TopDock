@@ -50,6 +50,23 @@ root.update()
 assert any(isinstance(w, tk.Label) and "Aditya Rathee" in w.cget("text") for w in app.settings_window.winfo_children())
 app.settings_window.destroy()
 app.settings_window = None
+app._search_from_settings("citrix")
+assert len(app.windows) == 1 and app.windows[0].application == "Citrix Workspace"
+app._search_from_settings("")
+root.clipboard_clear()
+root.clipboard_append("function example() {\n  return true;\n}")
+app.show_clipboard_preview()
+root.update()
+assert app.clipboard_window is not None and app.clipboard_window.winfo_exists()
+app.clipboard_window.destroy()
+app.clipboard_window = None
+app.collapse_dock()
+root.update()
+assert app.collapsed and root.winfo_width() == 60
+app.expand_dock()
+root.update()
+assert not app.collapsed and root.winfo_width() == app.width
+print("PASS settings search, clipboard preview and circle collapse/restore")
 app._set_geometry(0)
 root.update()
 from linux_screenshot_service import LinuxScreenshotService
@@ -61,6 +78,12 @@ im = Image.open(io.BytesIO(data))
 assert im.size == (80, 40)
 assert im.getpixel((0, 0)) == (168, 85, 247)
 print("PASS PNG clipboard readback, dimensions and pixels")
+app.show_clipboard_preview()
+root.update()
+assert any(isinstance(widget, tk.Canvas) for widget in app.clipboard_window.winfo_children())
+app.clipboard_window.destroy()
+app.clipboard_window = None
+print("PASS PNG clipboard image preview")
 result = LinuxScreenshotService().capture_to_clipboard((20, 20, 100, 50))
 assert result.success, result.message
 data = subprocess.check_output(["xclip", "-selection", "clipboard", "-t", "image/png", "-o"], timeout=5)
