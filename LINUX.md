@@ -60,6 +60,9 @@ with `sudo`; that can disconnect it from your clipboard and display session.
   drag the icon to move it and click to restore the dock.
 - AUTO toggles the clicker; select its area in Settings.
 - CLIP previews host clipboard text or PNG images with zoom controls.
+- Drag quick buttons to reorder them; Settings can hide/show each button.
+- Quick-button order, visibility and dock position persist across restarts.
+- ZoomClipboardUI.exe is Windows-only; CLIP is the local Linux alternative.
 - Search applications, Pin, Startup and version are in Settings.
 - Move the pointer to the top edge or press `Ctrl+Alt+Space` to reveal TopDock.
 - Select an application card to switch windows. Cards show application names,
@@ -77,7 +80,6 @@ with `sudo`; that can disconnect it from your clipboard and display session.
 - Screenshots use original-resolution, lossless PNG without enlargement or
   downscaling. A full 3840×2160 selection on a 4K desktop stays 3840×2160.
   Smaller selections remain their original size.
-- Select **AREA** and drag a rectangle to configure the auto-clicker.
 - Select **AUTO** to toggle clicking. TopDock pauses clicks whenever the active
   window is not Citrix, Remmina, FreeRDP, or VMware Horizon.
 - Use **Settings** to enable login startup or keep the dock open.

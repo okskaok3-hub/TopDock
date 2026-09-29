@@ -1,12 +1,16 @@
 """Run under xvfb-run: exercise real Tk geometry and X11 PNG clipboard."""
 import io
+import os
 import sys
+import tempfile
 import time
 import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+settings_sandbox = tempfile.TemporaryDirectory()
+os.environ["XDG_CONFIG_HOME"] = settings_sandbox.name
 import tkinter as tk
 from PIL import Image
 from linux_topdock import LinuxTopDock
@@ -53,6 +57,18 @@ app.settings_window = None
 app._search_from_settings("citrix")
 assert len(app.windows) == 1 and app.windows[0].application == "Citrix Workspace"
 app._search_from_settings("")
+source = app.paste_button
+target = app.auto_button
+app._quick_drag_start("paste", SimpleNamespace(x_root=source.winfo_rootx(), y_root=source.winfo_rooty()))
+app._quick_drag_end("paste", SimpleNamespace(
+    x_root=target.winfo_rootx() + target.winfo_width() - 2,
+    y_root=target.winfo_rooty() + target.winfo_height() // 2))
+assert app.quick_order.index("paste") > app.quick_order.index("auto")
+app._toggle_quick_action("shot", SimpleNamespace(get=lambda: False))
+assert "shot" in app.quick_hidden and not app.shot_button.master.winfo_manager()
+assert app.ui_settings_path.exists()
+app._toggle_quick_action("shot", SimpleNamespace(get=lambda: True))
+print("PASS draggable quick-button order and visibility preferences")
 root.clipboard_clear()
 root.clipboard_append("function example() {\n  return true;\n}")
 app.show_clipboard_preview()
@@ -96,3 +112,4 @@ if root.winfo_screenwidth() >= 3840 and root.winfo_screenheight() >= 2160:
     assert Image.open(io.BytesIO(data)).size == (3840, 2160)
     print("PASS native 4K capture and lossless PNG clipboard readback: 3840 x 2160")
 app.exit()
+settings_sandbox.cleanup()

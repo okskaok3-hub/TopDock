@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.3.0 — Reliable edge reveal and customizable tools — 2026-09-29
+
+- Restore top-edge reveal after dragging the dock or collapsing it into a circle.
+  The reveal band follows the physical monitor edge rather than a saved dock position.
+- Persist dock position and user-defined quick-button order/visibility on Windows
+  and Linux. Keep Pin, Search and Startup in Settings.
+- Bundle the Windows Zoom Clipboard dashboard beside TopDock and launch it with
+  one ZOOM button. A custom executable path can be selected in Settings.
+- Retain a local text/image clipboard preview in Settings on Windows and behind
+  CLIP on Linux. ZoomClipboardUI.exe is Windows-only.
+- Display version 1.3.0, add edge-activation regression checks, and package the
+  Windows pair in one portable ZIP.
+
 ## v1.2.0 — Compact controls and movable overlay — 2026-09-28
 
 - Combine auto-clicker controls into one AUTO action on both platforms. It opens

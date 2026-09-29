@@ -7,6 +7,9 @@ public static class ContentChecks
 {
     public static void Run()
     {
+        if (!MainWindow.IsTopActivationEdge(0, 0) || !MainWindow.IsTopActivationEdge(18, 0) ||
+            MainWindow.IsTopActivationEdge(19, 0) || !MainWindow.IsTopActivationEdge(-882, -900))
+            throw new InvalidOperationException("Top-edge activation band failed");
         var text = HostClipboardTyper.PrepareText("const x = \"A→B\";\r\n\treturn x; 😀", out var skipped);
         if (text != "const x = \"AB\";\n\treturn x; " || skipped != 2)
             throw new InvalidOperationException("Unicode skip fidelity failed");
@@ -24,6 +27,6 @@ public static class ContentChecks
         decoded.CopyPixels(output, 3840 * 3, 0);
         if (!pixels.SequenceEqual(output))
             throw new InvalidOperationException("PNG pixels changed");
-        Console.WriteLine("PASS symbol skipping, ASCII code fidelity, and pixel-exact 3840x2160 PNG roundtrip");
+        Console.WriteLine("PASS top-edge activation, symbol skipping, ASCII code fidelity, and pixel-exact 3840x2160 PNG roundtrip");
     }
 }

@@ -2,10 +2,11 @@
 
 ## Install and update
 
-Download `TopDock-Windows-x64.exe` from Releases into a permanent folder and
-run it. No installer or separate .NET runtime is required.
+Download and extract `TopDock-Windows-v1.3.0.zip` into a permanent folder, then
+run `TopDock.exe`. Keep `ZoomClipboardUI.exe` beside it. No installer or separate
+.NET runtime is required.
 Use Settings to register login startup. If you move the executable,
-disable and re-enable startup so it points to the new location.
+relaunch TopDock after moving it so the startup entry points to the new location.
 
 To update, exit TopDock from the notification-area menu, replace the extracted
 files, and launch the new executable. The single-instance guard prevents running
@@ -13,7 +14,8 @@ two copies simultaneously.
 
 ## Controls
 
-- Top 14 pixels / Ctrl+Alt+Space: reveal or toggle the dock.
+- Top 18 pixels of any monitor / Ctrl+Alt+Space: reveal or toggle the dock,
+  including after dragging it or collapsing it to a circle.
 - Application card: switch; middle-click: request close.
 - Slider / mouse wheel: browse all open windows.
 - Alt+1 through Alt+9: switch while TopDock has focus.
@@ -22,7 +24,9 @@ two copies simultaneously.
 - SHOT: drag a rectangle anywhere on the virtual desktop. Escape/right-click
   cancels. Copy original pixels as PNG and bitmap.
 - AUTO: click to toggle; its area is selected in Settings.
-- CLIP: preview host clipboard text or an image and change its zoom level.
+- ZOOM: launch the bundled Zoom Clipboard dashboard; a different executable
+  can be selected in Settings. The local text/image preview is also in Settings.
+- Drag quick buttons to reorder them; Settings can hide or show each one.
 - Drag the logo to move the dock. Settings can collapse it to a draggable circle.
 - Settings: search, Pin, login Startup, version number, and Exit.
 
@@ -43,7 +47,7 @@ release/windows/TopDock.exe --content-test
 
 `--self-test` enumerates windows. `--paste-config-test` reports timing settings.
 `--content-test` validates skip behavior, ASCII preservation, and a pixel-exact
-3840×2160 PNG roundtrip without injecting keys or replacing the clipboard.
+3840×2160 PNG roundtrip and top-edge activation without injecting keys or replacing the clipboard.
 
 Final manual checks should use the interactive Windows desktop: reveal at the
 top edge, drag the slider, switch applications, open Settings, capture a region,

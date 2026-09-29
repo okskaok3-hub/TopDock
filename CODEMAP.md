@@ -90,3 +90,5 @@ generated content and should not be treated as source files.
   selector across the complete Windows virtual desktop.
 - `windows-topdock/ScreenshotService.cs` captures physical pixels and publishes
   the resulting image to the Windows clipboard.
+- `zoom-clipboard/` contains the optional Windows Zoom Clipboard dashboard
+  source, built as a second executable beside TopDock.

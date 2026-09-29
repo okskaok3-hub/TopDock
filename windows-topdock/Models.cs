@@ -21,4 +21,9 @@ public sealed class AppSettings
     public int ClickAreaTop { get; set; }
     public int ClickAreaWidth { get; set; }
     public int ClickAreaHeight { get; set; }
+    public List<string> QuickActionOrder { get; set; } = ["paste", "shot", "auto", "zoom"];
+    public List<string> HiddenQuickActions { get; set; } = [];
+    public string? ZoomClipboardPath { get; set; }
+    public double? DockLeft { get; set; }
+    public double? DockTop { get; set; }
 }

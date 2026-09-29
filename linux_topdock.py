@@ -3,6 +3,8 @@
 
 from datetime import datetime
 from io import BytesIO
+import json
+import os
 import portable_runtime  # Make bundled X11 helpers available before other imports.
 import subprocess
 import sys
@@ -14,15 +16,16 @@ from queue import SimpleQueue, Empty
 
 from linux_screenshot_service import LinuxScreenshotService
 from linux_window_service import X11WindowService
-from platform_utils import IS_LINUX, get_linux_runtime_warnings, is_in_startup, toggle_startup
+from platform_utils import IS_LINUX, get_config_dir, get_linux_runtime_warnings, is_in_startup, toggle_startup
 from startup_diagnostics import check_required_modules, print_startup_report
 
 
 class LinuxTopDock:
     TITLE = "TopDock Linux"
-    VERSION = "1.2.0"
+    VERSION = "1.3.0"
     HEIGHT = 76
     EDGE_HEIGHT = 4
+    QUICK_ACTION_IDS = ("paste", "shot", "auto", "clip")
 
     COLORS = {
         "background": "#15171d",
@@ -42,11 +45,17 @@ class LinuxTopDock:
         self.root = root
         self.window_service = X11WindowService(self.TITLE)
         self.width = max(1, min(1500, root.winfo_screenwidth() - 16))
-        self.x = max(0, (root.winfo_screenwidth() - self.width) // 2)
-        self.shown_y = 0
+        self.ui_settings_path = get_config_dir() / "topdock-ui.json"
+        self.ui_settings = self._load_ui_settings()
+        self.quick_order = self.ui_settings["quick_order"]
+        self.quick_hidden = set(self.ui_settings["quick_hidden"])
+        self.x = max(0, min(root.winfo_screenwidth() - self.width,
+            self.ui_settings.get("x", (root.winfo_screenwidth() - self.width) // 2)))
+        self.shown_y = max(0, min(root.winfo_screenheight() - self.HEIGHT,
+            self.ui_settings.get("y", 0)))
         self.hidden_y = -(self.HEIGHT - self.EDGE_HEIGHT)
         self.is_shown = True
-        self.pinned = False
+        self.pinned = self.ui_settings.get("pinned", False)
         self.last_inside = time.monotonic()
         self.animation_id = None
         self.status_until = 0.0
@@ -61,6 +70,7 @@ class LinuxTopDock:
         self.drag_origin = None
         self.search_query = ""
         self.clipboard_window = None
+        self.quick_drag = None
 
         self._configure_window()
         self._build_ui()
@@ -207,7 +217,17 @@ class LinuxTopDock:
         self.shot_button = self._tool_button(tools, "⌖\nSHOT", self.select_screenshot_area, width=6)
         self.auto_button = self._tool_button(tools, "◎\nAUTO OFF", self.toggle_clicker, width=8)
         self.clipboard_button = self._tool_button(tools, "▣\nCLIP", self.show_clipboard_preview, width=6)
-        self._tool_button(tools, "⚙\nSETTINGS", self.show_settings, width=7)
+        self.settings_button = self._tool_button(tools, "⚙\nSETTINGS", self.show_settings, width=7)
+        self.quick_buttons = {
+            "paste": self.paste_button,
+            "shot": self.shot_button,
+            "auto": self.auto_button,
+            "clip": self.clipboard_button,
+        }
+        for key, button in self.quick_buttons.items():
+            button.bind("<ButtonPress-1>", lambda event, action=key: self._quick_drag_start(action, event))
+            button.bind("<ButtonRelease-1>", lambda event, action=key: self._quick_drag_end(action, event))
+        self._apply_quick_action_layout()
         self.circle = tk.Button(self.root, text="⌃", command=self.expand_dock,
             bg=self.COLORS["primary"], fg="white", activebackground=self.COLORS["primary_dark"],
             activeforeground="white", relief="flat", bd=0, font=("Inter", 24, "bold"), cursor="hand2")
@@ -215,6 +235,84 @@ class LinuxTopDock:
         self.circle.bind("<B1-Motion>", self._drag_move, add="+")
         self.circle.bind("<ButtonRelease-1>", self._drag_end, add="+")
         self._update_control_states()
+
+    def _load_ui_settings(self):
+        defaults = {"quick_order": list(self.QUICK_ACTION_IDS), "quick_hidden": [], "pinned": False}
+        try:
+            value = json.loads(self.ui_settings_path.read_text(encoding="utf-8"))
+            if not isinstance(value, dict):
+                return defaults
+        except (OSError, ValueError):
+            return defaults
+        order = value.get("quick_order", [])
+        hidden = value.get("quick_hidden", [])
+        if not isinstance(order, list):
+            order = []
+        if not isinstance(hidden, list):
+            hidden = []
+        defaults["quick_order"] = [key for key in order if key in self.QUICK_ACTION_IDS]
+        defaults["quick_order"] = list(dict.fromkeys(defaults["quick_order"] + list(self.QUICK_ACTION_IDS)))
+        defaults["quick_hidden"] = [key for key in hidden if key in self.QUICK_ACTION_IDS]
+        defaults["pinned"] = value.get("pinned") is True
+        for key in ("x", "y"):
+            if isinstance(value.get(key), int) and not isinstance(value[key], bool):
+                defaults[key] = value[key]
+        return defaults
+
+    def _save_ui_settings(self):
+        payload = {"quick_order": self.quick_order, "quick_hidden": sorted(self.quick_hidden),
+            "pinned": self.pinned, "x": self.x, "y": self.shown_y}
+        try:
+            self.ui_settings_path.parent.mkdir(parents=True, exist_ok=True)
+            temporary = self.ui_settings_path.with_name(".topdock-ui.json.tmp")
+            temporary.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+            os.replace(temporary, self.ui_settings_path)
+        except OSError:
+            self._set_status("Could not save dock preferences", "warning")
+
+    def _apply_quick_action_layout(self):
+        shells = {key: button.master for key, button in self.quick_buttons.items()}
+        for shell in [*shells.values(), self.settings_button.master]:
+            shell.pack_forget()
+        for key in self.quick_order:
+            if key not in self.quick_hidden:
+                shells[key].pack(side="left", padx=3)
+        self.settings_button.master.pack(side="left", padx=3)
+
+    def _quick_drag_start(self, action, event):
+        self.quick_drag = (action, event.x_root, event.y_root)
+
+    def _quick_drag_end(self, action, event):
+        if not self.quick_drag or self.quick_drag[0] != action:
+            return
+        _, start_x, start_y = self.quick_drag
+        self.quick_drag = None
+        if abs(event.x_root - start_x) + abs(event.y_root - start_y) < 7:
+            return
+        target = self.root.winfo_containing(event.x_root, event.y_root)
+        shells = {key: button.master for key, button in self.quick_buttons.items()}
+        while target is not None and target not in shells.values():
+            target = target.master
+        if target is None:
+            return
+        target_id = next(key for key, shell in shells.items() if shell == target)
+        if target_id == action:
+            return
+        self.quick_order.remove(action)
+        index = self.quick_order.index(target_id)
+        if event.x_root > target.winfo_rootx() + target.winfo_width() / 2:
+            index += 1
+        self.quick_order.insert(index, action)
+        self._apply_quick_action_layout()
+        self._save_ui_settings()
+
+    def _toggle_quick_action(self, action, variable):
+        if variable.get():
+            self.quick_hidden.discard(action)
+        else:
+            self.quick_hidden.add(action)
+        self._apply_quick_action_layout()
+        self._save_ui_settings()
 
     def _separator(self, parent):
         tk.Frame(parent, bg=self.COLORS["border"], width=1).pack(
@@ -267,13 +365,15 @@ class LinuxTopDock:
         visible_height = 60 if self.collapsed else self.HEIGHT
         self.x = max(0, min(screen_width - visible_width, start_x + event.x_root - px))
         self.shown_y = max(0, min(screen_height - visible_height, start_y + event.y_root - py))
-        self.hidden_y = self.shown_y - (self.HEIGHT - self.EDGE_HEIGHT)
+        self.hidden_y = -(self.HEIGHT - self.EDGE_HEIGHT)
         self.is_shown = True
         self._set_geometry(self.shown_y)
 
     def _drag_end(self, _event):
         if self.collapsed and self.drag_moved:
             self.circle.after_idle(lambda: self.circle.configure(command=self.expand_dock))
+        if self.drag_moved:
+            self._save_ui_settings()
         self.drag_origin = None
 
     def collapse_dock(self):
@@ -740,7 +840,8 @@ class LinuxTopDock:
         window.configure(bg=self.COLORS["background"])
         window.resizable(False, False)
         window.attributes("-topmost", True)
-        window.geometry(f"380x420+{max(0, self.x + self.width - 380)}+{self.shown_y + self.HEIGHT + 8}")
+        settings_y = min(self.shown_y + self.HEIGHT + 8, max(0, self.root.winfo_screenheight() - 520))
+        window.geometry(f"380x520+{max(0, self.x + self.width - 380)}+{settings_y}")
         tk.Label(window, text="TopDock settings", font=("Inter", 14, "bold"),
             bg=self.COLORS["background"], fg=self.COLORS["text"]).pack(anchor="w", padx=20, pady=(20, 12))
         tk.Label(window, text=f"Version {self.VERSION}", bg=self.COLORS["background"],
@@ -760,6 +861,17 @@ class LinuxTopDock:
         search.insert(0, self.search_query)
         search.pack(fill="x", padx=20, pady=4)
         search.bind("<KeyRelease>", lambda _e: self._search_from_settings(search.get()))
+        tk.Label(window, text="Quick buttons · drag to reorder", bg=self.COLORS["background"],
+            fg=self.COLORS["muted"], font=("Inter", 9, "bold")).pack(anchor="w", padx=20, pady=(10, 3))
+        choices = tk.Frame(window, bg=self.COLORS["background"])
+        choices.pack(fill="x", padx=20)
+        for key, label in (("paste", "Paste"), ("shot", "Shot"), ("auto", "Auto"), ("clip", "Clip")):
+            visible = tk.BooleanVar(value=key not in self.quick_hidden)
+            tk.Checkbutton(choices, text=label, variable=visible,
+                command=lambda action=key, state=visible: self._toggle_quick_action(action, state),
+                bg=self.COLORS["background"], fg=self.COLORS["text"],
+                selectcolor=self.COLORS["surface"], activebackground=self.COLORS["background"]
+            ).pack(side="left", padx=(0, 8))
         tk.Button(window, text="Set auto-click area", command=self.select_click_area,
             bg=self.COLORS["surface"], fg=self.COLORS["text"], relief="flat").pack(fill="x", padx=20, pady=(8, 0))
         tk.Button(window, text="Collapse to circle", command=self.collapse_dock,
@@ -791,6 +903,7 @@ class LinuxTopDock:
 
     def toggle_pin(self):
         self.pinned = not self.pinned
+        self._save_ui_settings()
         self._update_control_states()
         self._set_status("Dock pinned open" if self.pinned else "Dock auto-hide enabled", "info")
 
@@ -827,9 +940,6 @@ class LinuxTopDock:
         self.root.after(1000, self._update_clock)
 
     def _track_pointer(self):
-        if self.collapsed:
-            self.root.after(70, self._track_pointer)
-            return
         if self.capture_busy or self.settings_window:
             self.root.after(70, self._track_pointer)
             return
@@ -837,6 +947,12 @@ class LinuxTopDock:
             pointer_x = self.root.winfo_pointerx()
             pointer_y = self.root.winfo_pointery()
         except tk.TclError:
+            return
+
+        if self.collapsed:
+            if pointer_y <= 2:
+                self.reveal()
+            self.root.after(70, self._track_pointer)
             return
 
         if pointer_y <= 2:

@@ -16,11 +16,11 @@ Open [Releases](https://github.com/okskaok3-hub/TopDock/releases) for the curren
 
 | Edition | Current package | Requirements |
 | --- | --- | --- |
-| Windows portable | [TopDock-Windows-x64.exe](https://github.com/okskaok3-hub/TopDock/releases/download/v1.2.0/TopDock-Windows-x64.exe) | Windows x64; Python/.NET installation not needed |
-| Linux portable | [TopDock-Linux-x86_64](https://github.com/okskaok3-hub/TopDock/releases/download/v1.2.0/TopDock-Linux-x86_64) | x86-64, glibc 2.31+, X11 desktop; Python/Tk and helpers bundled |
+| Windows portable | [TopDock-Windows-v1.3.0.zip](https://github.com/okskaok3-hub/TopDock/releases/download/v1.3.0/TopDock-Windows-v1.3.0.zip) | Windows x64; includes TopDock and Zoom Clipboard dashboard |
+| Linux portable | [TopDock-Linux-x86_64](https://github.com/okskaok3-hub/TopDock/releases/download/v1.3.0/TopDock-Linux-x86_64) | x86-64, glibc 2.31+, X11 desktop; Python/Tk and helpers bundled |
 | Other Linux architectures | Build from source | Python 3, Tk, X11 and the system tools listed below |
 
-**[v1.2.0](https://github.com/okskaok3-hub/TopDock/releases/tag/v1.2.0)** includes
+**[v1.3.0](https://github.com/okskaok3-hub/TopDock/releases/tag/v1.3.0)** includes
 both portable editions and SHA-256 checksums. Download the platform asset, not
 the automatically generated source archives.
 
@@ -35,13 +35,11 @@ for how the Windows and Linux versions developed.
 - **PASTE:** type the host clipboard into a supported VDI client.
 - **SHOT:** drag any desktop region and copy its image to the host clipboard.
 - Lossless screenshots at original pixel dimensions; a 4K selection stays 4K.
-- **AUTO / AREA:** toggle the built-in auto-clicker and select its click area.
-- **Settings:** login startup, Pin, Search and version information.
-- Settings and creator credit.
+- **AUTO:** toggle the built-in auto-clicker; choose its area in Settings.
 - Draggable dock and a Settings action that collapses it into a movable circle.
-- One AUTO control; select or change its click area in Settings.
-- Clipboard text and PNG image preview with zoom controls.
-- Search, Pin, Startup, and version information in Settings.
+- Drag quick buttons into your preferred order, or hide them in Settings.
+- **ZOOM (Windows):** launch the bundled Zoom Clipboard dashboard. Linux has a local CLIP preview instead.
+- Search, Pin, Startup, clipboard preview and version information in Settings.
 
 ### Text fidelity
 
@@ -69,12 +67,12 @@ Windows selection spans the virtual desktop, including multiple monitors.
 
 ## Windows quick start
 
-1. Download `TopDock-Windows-x64.exe` from Releases to a permanent folder.
-2. Run the executable.
+1. Download and extract `TopDock-Windows-v1.3.0.zip` to a permanent folder.
+2. Run `TopDock.exe`; keep `ZoomClipboardUI.exe` beside it.
 3. Move the pointer to the top edge or press `Ctrl+Alt+Space`.
 4. Use Settings to enable Windows startup if wanted.
 
-The executable includes the .NET runtime and native WPF libraries. Only one
+The executables include their .NET runtimes and native libraries. Only one
 Windows TopDock instance runs at a time. Exit the old instance from the tray
 before replacing its executable.
 
