@@ -49,7 +49,7 @@ class LinuxKeyboardAdapter:
     @staticmethod
     def _pynput_hotkey(hotkey):
         aliases = {
-            "ctrl": "control",
+            "control": "ctrl",
             "escape": "esc",
             "win": "cmd",
             "super": "cmd",
@@ -57,7 +57,7 @@ class LinuxKeyboardAdapter:
         parts = []
         for raw_part in hotkey.split("+"):
             part = aliases.get(raw_part.strip().lower(), raw_part.strip().lower())
-            parts.append(f"<{part}>" if part in {"control", "shift", "alt", "cmd", "esc"} else part)
+            parts.append(f"<{part}>" if part in {"ctrl", "shift", "alt", "cmd", "esc"} else part)
         return "+".join(parts)
 
     def add_hotkey(self, hotkey, callback):

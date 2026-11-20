@@ -123,6 +123,54 @@ class X11WindowService:
             windows.append(window)
         return windows
 
+    def window_icons(self, window_ids):
+        """Read standard EWMH application icons in one X11 connection."""
+        icons = dict.fromkeys(window_ids)
+        if not icons:
+            return icons
+        try:
+            from Xlib import Xatom, display, error
+        except ImportError:
+            return icons
+        try:
+            connection = display.Display()
+        except (OSError, error.DisplayError):
+            return icons
+        try:
+            icon_atom = connection.intern_atom("_NET_WM_ICON", only_if_exists=True)
+            if not icon_atom:
+                return icons
+            for window_id in icons:
+                try:
+                    window = connection.create_resource_object("window", int(window_id, 16))
+                    prop = window.get_property(icon_atom, Xatom.CARDINAL, 0, 65536)
+                    if prop is not None:
+                        icons[window_id] = self._decode_window_icon(prop.value)
+                except (ValueError, error.XError):
+                    continue
+        finally:
+            connection.close()
+        return icons
+
+    @staticmethod
+    def _decode_window_icon(values):
+        images = []
+        end = 0
+        while end + 2 <= len(values):
+            width, height = values[end:end + 2]
+            start = end + 2
+            end = start + width * height
+            if width < 1 or height < 1 or end > len(values):
+                break
+            images.append((width, height, start, end))
+        if not images:
+            return None
+        width, height, start, end = min(images, key=lambda item: abs(max(item[:2]) - 24))
+        rgba = bytearray()
+        for pixel in values[start:end]:
+            rgba.extend(((pixel >> 16) & 255, (pixel >> 8) & 255, pixel & 255, pixel >> 24))
+        return width, height, bytes(rgba)
+
     def active_window_id(self):
         result = self._run(["xprop", "-root", "_NET_ACTIVE_WINDOW"])
         if not result or result.returncode != 0:
@@ -150,6 +198,10 @@ class X11WindowService:
 
     def activate(self, window_id):
         result = self._run(["wmctrl", "-ia", window_id])
+        return bool(result and result.returncode == 0)
+
+    def close(self, window_id):
+        result = self._run(["wmctrl", "-ic", window_id])
         return bool(result and result.returncode == 0)
 
     def apply_overlay_hints(self, tk_window_id):

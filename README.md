@@ -17,12 +17,17 @@ Open [Releases](https://github.com/okskaok3-hub/TopDock/releases) for the curren
 | Edition | Current package | Requirements |
 | --- | --- | --- |
 | Windows portable | [TopDock-Windows-v1.3.0.zip](https://github.com/okskaok3-hub/TopDock/releases/download/v1.3.0/TopDock-Windows-v1.3.0.zip) | Windows x64; includes TopDock and Zoom Clipboard dashboard |
-| Linux portable | [TopDock-Linux-x86_64](https://github.com/okskaok3-hub/TopDock/releases/download/v1.3.0/TopDock-Linux-x86_64) | x86-64, glibc 2.31+, X11 desktop; Python/Tk and helpers bundled |
+| Linux portable | [TopDock-Linux-Ubuntu24-x64.tar.gz](https://github.com/okskaok3-hub/TopDock/releases/download/v1.4.0/TopDock-Linux-Ubuntu24-x64.tar.gz) | Ubuntu 24.04 x64, X11. Includes the TopDock binary and Zoom Clipboard |
 | Other Linux architectures | Build from source | Python 3, Tk, X11 and the system tools listed below |
 
-**[v1.3.0](https://github.com/okskaok3-hub/TopDock/releases/tag/v1.3.0)** includes
-both portable editions and SHA-256 checksums. Download the platform asset, not
-the automatically generated source archives.
+**[Linux v1.4.0](https://github.com/okskaok3-hub/TopDock/releases/tag/v1.4.0)** brings the
+Windows dock styling to X11, including rounded controls, application icons, a
+magenta active-window marker, and a high-contrast screenshot cursor. Startup
+and Zoom Clipboard are in Settings. Search is hidden by default, click areas
+reset on restart, and the top edge waits 0.75 seconds before revealing the dock.
+
+The [v1.3.0 Linux binary](https://github.com/okskaok3-hub/TopDock/releases/download/v1.3.0/TopDock-Linux-x86_64)
+is available for the older glibc 2.31 baseline.
 
 The first repository release is **v1.0.0**. The package suffixes `v5` and `v4`
 retain the original platform-specific build numbers. See [CHANGELOG.md](CHANGELOG.md)
@@ -38,7 +43,7 @@ for how the Windows and Linux versions developed.
 - **AUTO:** toggle the built-in auto-clicker; choose its area in Settings.
 - Draggable dock and a Settings action that collapses it into a movable circle.
 - Drag quick buttons into your preferred order, or hide them in Settings.
-- **ZOOM (Windows):** launch the bundled Zoom Clipboard dashboard. Linux has a local CLIP preview instead.
+- **Open Zoom Clipboard:** launch the companion dashboard from Linux Settings. Windows packages include the native dashboard.
 - Search, Pin, Startup, clipboard preview and version information in Settings.
 
 ### Text fidelity
@@ -87,19 +92,17 @@ See [Windows guide](docs/WINDOWS.md).
 
 ## Linux quick start
 
-Download the single `TopDock-Linux-x86_64` executable from Releases. No installer
-or `.sh` launcher is required:
+Download the Linux archive above, extract it, and run the binary in an X11 desktop session.
 
 ```bash
-chmod +x TopDock-Linux-x86_64
+tar -xzf TopDock-Linux-Ubuntu24-x64.tar.gz
+./TopDock-Linux-x86_64 --check
 ./TopDock-Linux-x86_64
 ```
 
-Run as your normal desktop user in an X11 session. SSH alone does not create a
-visible desktop connection. This portable binary targets glibc 2.31+ x86-64
-desktops, not ARM, Alpine/musl, or native Wayland. It extracts bundled files to
-a temporary directory at launch; that location must allow execution.
-The older Kali-specific package remains available in release v1.0.0.
+Keep the `zoom-clipboard` directory beside the binary. The companion opens in
+your browser and uses the system Python 3. TopDock extracts its bundled runtime
+to a temporary directory at launch and requires execution permission there.
 
 Source installation on Debian/Ubuntu/Kali:
 
@@ -123,11 +126,11 @@ See [Linux guide](LINUX.md) and [build and testing guide](docs/BUILDING.md).
 
 | Action | Windows | Linux |
 | --- | --- | --- |
-| Reveal | Top 14px or Ctrl+Alt+Space | Top edge or Ctrl+Alt+Space |
+| Reveal | Top 14px or Ctrl+Alt+Space | Hold at the top edge for 0.75 seconds by default, or Ctrl+Alt+Space |
 | Switch | Click card; Alt+1…9 while focused | Click card; Alt+1…9 while focused |
 | Browse overflow | Slider or wheel | Slider or wheel; arrow keys on slider |
-| Search windows | Settings / Ctrl+F | Settings |
-| Close another window | Middle-click card | Not implemented |
+| Search windows | Settings / Ctrl+F | Enable in Settings, then use the search button or Ctrl+F |
+| Close another window | Middle-click card | Middle-click card |
 | Capture | SHOT; full virtual desktop selector | SHOT; X11 desktop selector |
 | VDI detection | Citrix / Remote Desktop | Citrix / Remmina / FreeRDP / Horizon |
 

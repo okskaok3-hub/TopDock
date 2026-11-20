@@ -18,7 +18,7 @@ from linux_topdock import LinuxTopDock
 root = tk.Tk()
 app = LinuxTopDock(root)
 app.window_service.list_windows = lambda: [SimpleNamespace(
-    application=name, is_vdi=False, window_id=str(i)) for i, name in enumerate(
+    application=name, title=f"{name} window", is_vdi=False, window_id=str(i)) for i, name in enumerate(
     ["Firefox", "Terminal", "File Manager", "Citrix Workspace", "Text Editor", "Settings", "Very long application name"])]
 app.pinned = True
 root.update()
@@ -54,9 +54,16 @@ root.update()
 assert any(isinstance(w, tk.Label) and "Aditya Rathee" in w.cget("text") for w in app.settings_window.winfo_children())
 app.settings_window.destroy()
 app.settings_window = None
-app._search_from_settings("citrix")
+assert not app.show_window_search and not app.search_button.master.winfo_manager()
+assert app._open_search() is None and not app.search_open
+app._set_search_visibility(True)
+assert app.search_button.master.winfo_manager() == "pack"
+app._open_search()
+app.search_input.set("citrix")
 assert len(app.windows) == 1 and app.windows[0].application == "Citrix Workspace"
-app._search_from_settings("")
+app._set_search_visibility(False)
+assert not app.search_open and not app.search_query and len(app.windows) == 7
+root.update()
 source = app.paste_button
 target = app.auto_button
 app._quick_drag_start("paste", SimpleNamespace(x_root=source.winfo_rootx(), y_root=source.winfo_rooty()))
@@ -82,7 +89,7 @@ assert app.collapsed and root.winfo_width() == 60
 app.expand_dock()
 root.update()
 assert not app.collapsed and root.winfo_width() == app.width
-print("PASS settings search, clipboard preview and circle collapse/restore")
+print("PASS optional search, clipboard preview and circle collapse/restore")
 app._set_geometry(0)
 root.update()
 from linux_screenshot_service import LinuxScreenshotService

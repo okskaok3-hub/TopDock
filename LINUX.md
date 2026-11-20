@@ -6,18 +6,20 @@ VMware Horizon sessions.
 
 ## Supported desktop environment
 
-The portable `TopDock-Linux-x86_64` executable targets **x86-64 Linux with
-glibc 2.31 or newer and an X11 desktop**. It bundles Python, Tk, wmctrl, xprop,
-xclip, scrot and the PNG capture codec. No `.sh` installer is needed.
-ARM, Alpine/musl and native Wayland are not supported by this binary.
-
-To run the binary in an X11 desktop session:
+The [v1.4.0 Linux archive](https://github.com/okskaok3-hub/TopDock/releases/download/v1.4.0/TopDock-Linux-Ubuntu24-x64.tar.gz)
+was built for **Ubuntu 24.04 x64 on X11**. TopDock bundles Python, Tk, wmctrl,
+xprop, xclip, scrot, and the PNG capture codec. The included Zoom Clipboard
+companion uses your system Python 3 and opens in a browser.
 
 ```bash
-chmod +x TopDock-Linux-x86_64
+tar -xzf TopDock-Linux-Ubuntu24-x64.tar.gz
 ./TopDock-Linux-x86_64 --check
 ./TopDock-Linux-x86_64
 ```
+
+Keep the `zoom-clipboard` directory next to the executable. The
+[v1.3.0 Linux binary](https://github.com/okskaok3-hub/TopDock/releases/download/v1.3.0/TopDock-Linux-x86_64)
+is available for systems on the older glibc 2.31 baseline.
 
 Use an X11/Xorg desktop session for complete functionality. GNOME, KDE Plasma,
 Xfce, Cinnamon, and MATE are supported when they run on X11.
@@ -58,18 +60,19 @@ with `sudo`; that can disconnect it from your clipboard and display session.
 
 - Drag the logo to move the dock. In Settings, collapse it to a circular icon;
   drag the icon to move it and click to restore the dock.
-- AUTO toggles the clicker; select its area in Settings.
-- CLIP previews host clipboard text or PNG images with zoom controls.
+- **Settings → Preview local clipboard** opens host clipboard text or PNG images.
 - Drag quick buttons to reorder them; Settings can hide/show each button.
 - Quick-button order, visibility and dock position persist across restarts.
-- ZoomClipboardUI.exe is Windows-only; CLIP is the local Linux alternative.
-- Search applications, Pin, Startup and version are in Settings.
-- Move the pointer to the top edge or press `Ctrl+Alt+Space` to reveal TopDock.
+- **Settings → Open Zoom Clipboard** launches the included Linux dashboard. Source builds can use the companion installed from the [Zoom Clipboard repository](https://github.com/okskaok3-hub/zoom-clipboard).
+- **Start TopDock with Linux**, **Compact window cards**, and **Show window search** are in Settings. Search is hidden by default. When enabled, use its dock button or **Ctrl+F** while TopDock is focused.
+- Middle-click an application card to request that the window close.
+- Hold the pointer at the top edge for 0.75 seconds to reveal TopDock, or press `Ctrl+Alt+Space`.
+- In **Settings → Open at top edge**, choose **After 0.75 seconds**, **Immediately**, or **Shortcut only**. Shortcut-only mode requires a working global hotkey. Turn off **Keep dock open** to let the dock hide when you move away.
 - Select an application card to switch windows. Cards show application names,
   not full document titles. Drag the slim horizontal slider below the cards (or
   use the mouse wheel over them) to reach every open application.
 - Select **SHOT**, then use the crosshair to drag any area of the full desktop.
-  The selected region is copied to the Linux host clipboard as a PNG image.
+  The high-contrast yellow crosshair marks the selection point, and the selected region is copied to the Linux host clipboard as a PNG image.
   Press `Escape` to cancel without capturing.
 - Select **PASTE** to capture the Linux host clipboard, focus an open VDI client,
   and type the text as keyboard input.
@@ -80,10 +83,11 @@ with `sudo`; that can disconnect it from your clipboard and display session.
 - Screenshots use original-resolution, lossless PNG without enlargement or
   downscaling. A full 3840×2160 selection on a 4K desktop stays 3840×2160.
   Smaller selections remain their original size.
-- Select **AUTO** to toggle clicking. TopDock pauses clicks whenever the active
-  window is not Citrix, Remmina, FreeRDP, or VMware Horizon.
+- Select **AUTO** and drag an area on your first use after each launch. Choose
+  **Start auto clicker**, **Stop auto clicker**, or **Select click area** from the
+  **AUTO** menu. Clicking only runs while Citrix, Remmina, FreeRDP, or VMware
+  Horizon is active.
 - Use **Settings** to enable login startup or keep the dock open.
-- Select **SETTINGS** for controls, Exit, and “Made with love by Aditya Rathee”.
 - Cards occupy a fixed 44-pixel row, with a separate subtle slider underneath.
 
 ## Build a standalone Linux executable
@@ -110,4 +114,4 @@ Windows. On the Linux target machine run:
   Toolkit control center, which shares the same configuration file.
 
 Configuration is stored in `~/.config/VDIToolkit/config.json` by default.
-The selected auto-click area is saved there and restored at the next launch.
+TopDock remembers your dock preferences. The autoclick area lasts for the current run.

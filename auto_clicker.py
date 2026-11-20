@@ -15,13 +15,14 @@ from settings import config
 class AutoClicker:
     """Auto clicker with area selection."""
 
-    def __init__(self, root, on_status=None, dispatch=None, is_target_active=None):
+    def __init__(self, root, on_status=None, dispatch=None, is_target_active=None, *, persist_area=True):
         self.root = root
         self.on_status = on_status or (lambda msg, msg_type: print(msg))
         self.dispatch = dispatch or (lambda callback: root.after(0, callback))
         self.is_target_active = is_target_active
 
-        saved_area = config.get("click_area", [])
+        self.persist_area = persist_area
+        saved_area = config.get("click_area", []) if persist_area else []
         self.selection_coords = tuple(saved_area) if len(saved_area) == 4 else None
         self.clicking = False
         self.program_running = True
@@ -37,6 +38,8 @@ class AutoClicker:
 
     def select_area(self):
         """Show fullscreen area selection UI."""
+        if self.selection_window is not None:
+            return
         self.on_status("Select click area...", "info")
 
         self.selection_window = tk.Toplevel(self.root)
@@ -109,10 +112,12 @@ class AutoClicker:
         if x2 - x1 < 10 or y2 - y1 < 10:
             self.on_status("Selection too small!", "warning")
             self.selection_window.destroy()
+            self.selection_window = None
             return
 
         self.selection_coords = (x1, y1, x2, y2)
-        config.set("click_area", list(self.selection_coords))
+        if self.persist_area:
+            config.set("click_area", list(self.selection_coords))
 
         self.canvas.destroy()
         self.select_label.destroy()
