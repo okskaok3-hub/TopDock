@@ -16,7 +16,7 @@ Open [Releases](https://github.com/okskaok3-hub/TopDock/releases) for the curren
 
 | Edition | Current package | Requirements |
 | --- | --- | --- |
-| Windows portable | [TopDock-Windows-v1.3.0.zip](https://github.com/okskaok3-hub/TopDock/releases/download/v1.3.0/TopDock-Windows-v1.3.0.zip) | Windows x64; includes TopDock and Zoom Clipboard dashboard |
+| Windows portable | [TopDock-Windows-v1.4.1.zip](https://github.com/okskaok3-hub/TopDock/releases/download/v1.4.1/TopDock-Windows-v1.4.1.zip) | Windows x64; includes TopDock and Zoom Clipboard dashboard |
 | Linux portable | [TopDock-Linux-Ubuntu24-x64.tar.gz](https://github.com/okskaok3-hub/TopDock/releases/download/v1.4.0/TopDock-Linux-Ubuntu24-x64.tar.gz) | Ubuntu 24.04 x64, X11. Includes the TopDock binary and Zoom Clipboard |
 | Other Linux architectures | Build from source | Python 3, Tk, X11 and the system tools listed below |
 
@@ -72,23 +72,23 @@ Windows selection spans the virtual desktop, including multiple monitors.
 
 ## Windows quick start
 
-1. Download and extract `TopDock-Windows-v1.3.0.zip` to a permanent folder.
+1. Download and extract `TopDock-Windows-v1.4.1.zip` to a permanent folder.
 2. Run `TopDock.exe`; keep `ZoomClipboardUI.exe` beside it.
-3. Move the pointer to the top edge or press `Ctrl+Alt+Space`.
-4. Use Settings to enable Windows startup if wanted.
+3. Hold the pointer at the top edge for 0.75 seconds or press `Ctrl+Alt+Space`.
+4. Open **Settings** to enable startup, launch Zoom Clipboard, show search, or change the reveal mode.
 
 The executables include their .NET runtimes and native libraries. Only one
 Windows TopDock instance runs at a time. Exit the old instance from the tray
 before replacing its executable.
 
-Build with the .NET 10 SDK on Windows:
+To build Windows v1.4.1 from source, check out tag `v1.4.1` and use the .NET 10 SDK:
 
 ```powershell
 dotnet publish windows-topdock/TopDock.csproj -c Release -o release/windows
 release/windows/TopDock.exe --content-test
 ```
 
-See [Windows guide](docs/WINDOWS.md).
+See the [Windows v1.4.1 guide](https://github.com/okskaok3-hub/TopDock/blob/v1.4.1/docs/WINDOWS.md).
 
 ## Linux quick start
 
@@ -126,10 +126,10 @@ See [Linux guide](LINUX.md) and [build and testing guide](docs/BUILDING.md).
 
 | Action | Windows | Linux |
 | --- | --- | --- |
-| Reveal | Top 14px or Ctrl+Alt+Space | Hold at the top edge for 0.75 seconds by default, or Ctrl+Alt+Space |
+| Reveal | Hold at the top edge for 0.75 seconds by default, or Ctrl+Alt+Space | Hold at the top edge for 0.75 seconds by default, or Ctrl+Alt+Space |
 | Switch | Click card; Alt+1…9 while focused | Click card; Alt+1…9 while focused |
 | Browse overflow | Slider or wheel | Slider or wheel; arrow keys on slider |
-| Search windows | Settings / Ctrl+F | Enable in Settings, then use the search button or Ctrl+F |
+| Search windows | Enable in Settings, then use the search button or Ctrl+F | Enable in Settings, then use the search button or Ctrl+F |
 | Close another window | Middle-click card | Middle-click card |
 | Capture | SHOT; full virtual desktop selector | SHOT; X11 desktop selector |
 | VDI detection | Citrix / Remote Desktop | Citrix / Remmina / FreeRDP / Horizon |
