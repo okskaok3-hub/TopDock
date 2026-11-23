@@ -2,7 +2,7 @@
 
 ## Install and update
 
-Download and extract `TopDock-Windows-v1.3.0.zip` into a permanent folder, then
+Download and extract `TopDock-Windows-v1.4.1.zip` into a permanent folder, then
 run `TopDock.exe`. Keep `ZoomClipboardUI.exe` beside it. No installer or separate
 .NET runtime is required.
 Use Settings to register login startup. If you move the executable,
@@ -14,21 +14,17 @@ two copies simultaneously.
 
 ## Controls
 
-- Top 18 pixels of any monitor / Ctrl+Alt+Space: reveal or toggle the dock,
-  including after dragging it or collapsing it to a circle.
+- Hold the pointer at the top edge for 0.75 seconds or press **Ctrl+Alt+Space**.
+  Use **Settings → Open at top edge** to choose immediate or shortcut-only reveal.
 - Application card: switch; middle-click: request close.
 - Slider / mouse wheel: browse all open windows.
 - Alt+1 through Alt+9: switch while TopDock has focus.
-- Search / Ctrl+F: search application names or window titles.
+- Search starts hidden. Enable **Show window search** in Settings to use the search button or **Ctrl+F**.
 - PASTE: capture local clipboard text, focus Citrix/Remote Desktop, then type.
-- SHOT: drag a rectangle anywhere on the virtual desktop. Escape/right-click
-  cancels. Copy original pixels as PNG and bitmap.
-- AUTO: click to toggle; its area is selected in Settings.
-- ZOOM: launch the bundled Zoom Clipboard dashboard; a different executable
-  can be selected in Settings. The local text/image preview is also in Settings.
-- Drag quick buttons to reorder them; Settings can hide or show each one.
-- Drag the logo to move the dock. Settings can collapse it to a draggable circle.
-- Settings: search, Pin, login Startup, version number, and Exit.
+- **SHOT** uses a yellow crosshair with a dark outline. Drag a rectangle to copy the original pixels as PNG and bitmap. Press Escape or right-click to cancel.
+- The first **AUTO** click after each restart opens the area selector. Use the **AUTO** menu to start, stop, or select a new area.
+- **Settings → Open Zoom Clipboard** opens the bundled dashboard. Uploads accept `.txt`, `.csv`, `.log`, and `.md`. Files beginning with Windows MZ or Linux ELF executable signatures are rejected.
+- Drag quick buttons to reorder them. Use the pin to keep TopDock open.
 
 ## Configuration
 
@@ -47,7 +43,7 @@ release/windows/TopDock.exe --content-test
 
 `--self-test` enumerates windows. `--paste-config-test` reports timing settings.
 `--content-test` validates skip behavior, ASCII preservation, and a pixel-exact
-3840×2160 PNG roundtrip and top-edge activation without injecting keys or replacing the clipboard.
+3840×2160 PNG roundtrip without injecting keys or replacing the clipboard.
 
 Final manual checks should use the interactive Windows desktop: reveal at the
 top edge, drag the slider, switch applications, open Settings, capture a region,

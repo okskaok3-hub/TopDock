@@ -2,9 +2,9 @@ using System.Net;
 
 namespace ZoomClipboard;
 
-internal sealed class ProgressFileContent(string path, IProgress<int>? progress) : HttpContent
+internal sealed class ProgressFileContent(FileStream source, IProgress<int>? progress) : HttpContent
 {
-    private readonly long length = new FileInfo(path).Length;
+    private readonly long length = source.Length;
 
     protected override bool TryComputeLength(out long contentLength)
     {
@@ -17,8 +17,7 @@ internal sealed class ProgressFileContent(string path, IProgress<int>? progress)
 
     protected override async Task SerializeToStreamAsync(Stream stream, TransportContext? context, CancellationToken cancellationToken)
     {
-        await using var source = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read,
-            65536, FileOptions.Asynchronous | FileOptions.SequentialScan);
+        source.Position = 0;
         var buffer = new byte[65536];
         long sent = 0;
         int read;

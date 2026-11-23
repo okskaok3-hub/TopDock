@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Select screenshot area" WindowStyle="None" ResizeMode="NoResize"
         AllowsTransparency="True" Background="Transparent" ShowInTaskbar="False"
-        Topmost="True" Cursor="Cross" WindowStartupLocation="Manual"
+        Topmost="True" Cursor="None" WindowStartupLocation="Manual"
         PreviewKeyDown="Window_PreviewKeyDown">
     <Grid>
         <Canvas x:Name="SelectionCanvas" Background="#82080A0F"
@@ -30,5 +30,13 @@
                            Foreground="#B8C1D1" FontSize="11" Margin="0,4,0,0"/>
             </StackPanel>
         </Border>
+        <Canvas IsHitTestVisible="False">
+            <Grid x:Name="Crosshair" Width="42" Height="42" Visibility="Collapsed">
+                <Path Data="M 4,21 H 17 M 25,21 H 38 M 21,4 V 17 M 21,25 V 38"
+                      Stroke="#FF101010" StrokeThickness="7"/>
+                <Path Data="M 4,21 H 17 M 25,21 H 38 M 21,4 V 17 M 21,25 V 38"
+                      Stroke="#FFFFEA00" StrokeThickness="3"/>
+            </Grid>
+        </Canvas>
     </Grid>
 </Window>

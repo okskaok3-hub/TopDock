@@ -5,7 +5,7 @@ TopDock is a native Windows floating taskbar for quickly switching between local
 ## Quick start
 
 1. Run `TopDock.exe`. No installer or separate .NET download is required for the self-contained build.
-2. Move the pointer against the top edge of any monitor whenever you want to reveal it.
+2. Hold the pointer against the top edge of any monitor for 0.75 seconds to reveal TopDock.
 3. To keep it available after restarting Windows, open Settings in TopDock and enable **Launch when I sign in**.
 
 ## Use
@@ -28,14 +28,16 @@ TopDock is a native Windows floating taskbar for quickly switching between local
   capture a specific region. The image is copied directly to the host clipboard;
   press `Esc` or right-click to cancel.
 - Press `Ctrl+Alt+Space` to show or hide TopDock.
+- In **Settings → Open at top edge**, choose **After 0.75 seconds**, **Immediately**, or **Shortcut only**. Turn off **Keep dock open** if you want TopDock to collapse when you move away.
 - Press `Alt+1` through `Alt+9` while TopDock is focused to switch directly.
 - Middle-click a window card to request that the window close.
 - Use the pin control to temporarily disable auto-hide.
 - Use Settings to launch TopDock at sign-in or enable compact window cards.
 - Settings includes the creator credit: **Made with love by Aditya Rathee**.
 - Select **PASTE** to capture the host Windows text clipboard, restore Citrix or Remote Desktop, and type the captured text as physical keystrokes. This does not send `Ctrl+Shift+V` into the VDI, so it cannot accidentally use the remote session's clipboard. New lines and source-code indentation are preserved by clearing editor-generated auto-indent before each clipboard line. Modifier keys are redundantly released with VDI-safe timing so capital letters and shifted punctuation do not affect following characters. Character and key-press delays follow the VDI Toolkit's safe-paste settings.
-- Select the auto-clicker's adjacent **gear** and drag a rectangle to save the click area. Select **AUTO** to toggle clicking ON or OFF. It clicks at the configured interval only while Citrix or Remote Desktop is foreground and restores the cursor after each click.
-- Select **STARTUP** to start TopDock when you sign in to Windows. A check mark indicates that startup is enabled.
+- Select **AUTO** and drag a rectangle to set the click area for this session. Use the **AUTO** menu to start or stop clicking or select another area. TopDock asks you to select an area again after restarting. It clicks at the configured interval only while Citrix or Remote Desktop is foreground and restores the cursor after each click.
+- In **Settings**, select **Start TopDock with Windows** to launch TopDock when you sign in.
+- Enable **Show window search** in **Settings** to add the search button and enable **Ctrl+F**. Search is hidden by default.
 
 TopDock runs in the notification area. Double-click its tray icon to reveal it, or right-click the icon to open the menu.
 

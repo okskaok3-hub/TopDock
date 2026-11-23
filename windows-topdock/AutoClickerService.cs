@@ -15,18 +15,6 @@ public sealed class AutoClickerService : IDisposable
     private CancellationTokenSource? _cancellation;
     private Task? _clickLoop;
 
-    public AutoClickerService(AppSettings settings)
-    {
-        if (settings.ClickAreaWidth >= 10 && settings.ClickAreaHeight >= 10)
-        {
-            SelectedArea = new Int32Rect(
-                settings.ClickAreaLeft,
-                settings.ClickAreaTop,
-                settings.ClickAreaWidth,
-                settings.ClickAreaHeight);
-        }
-    }
-
     public bool IsEnabled { get; private set; }
     public Int32Rect? SelectedArea { get; private set; }
     public event Action? StateChanged;

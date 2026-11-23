@@ -15,6 +15,7 @@ namespace ZoomClipboard;
 internal static class Program
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
+    private static readonly SemaphoreSlim LoginGate = new(1, 1);
     private static readonly string ConfigDirectory = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ZoomClipboard");
     private static readonly string ConfigPath = Path.Combine(ConfigDirectory, "config.json");
@@ -34,7 +35,13 @@ internal static class Program
             {
 #if ZOOM_GUI
                 ApplicationConfiguration.Initialize();
-                Application.Run(new DashboardForm());
+                using var instanceMutex = new Mutex(false, @"Local\ZoomClipboard.UI.SingleInstance", out var firstInstance);
+                if (!firstInstance)
+                {
+                    ActivateExistingInstance();
+                    return 0;
+                }
+                Application.Run(new ZoomClipboardApplicationContext());
                 return 0;
 #else
                 return Usage();
@@ -139,6 +146,7 @@ internal static class Program
 
     internal static bool IsSignedIn => File.Exists(AuthPath) ||
         Environment.GetEnvironmentVariable("ZOOM_CLIPBOARD_TOKEN") is { Length: > 20 };
+    internal static bool IsOnboardingComplete => IsSignedIn && !string.IsNullOrWhiteSpace(SavedChannelId);
     internal static bool HasTokenOverride => Environment.GetEnvironmentVariable("ZOOM_CLIPBOARD_TOKEN") is { Length: > 20 };
     internal static string SavedClientId
     {
@@ -182,8 +190,10 @@ internal static class Program
                 foreach (var file in message?["files"]?.AsArray() ?? [])
                 {
                     var id = file?["file_id"]?.GetValue<string>();
-                    if (string.IsNullOrWhiteSpace(id) || !seen.Add(id)) continue;
-                    var name = file?["file_name"]?.GetValue<string>() ?? id;
+                    var name = file?["file_name"]?.GetValue<string>();
+                    // Deleted attachments can remain in message history with only their ID.
+                    // Keep real zero-byte files, but do not display these nameless references.
+                    if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(name) || !seen.Add(id)) continue;
                     var size = file?["file_size"]?.GetValue<long>() ?? 0;
                     files.Add(new UploadedFile(id, name, size, date));
                 }
@@ -204,6 +214,17 @@ internal static class Program
         if (!Uri.TryCreate(link, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps)
             throw new InvalidOperationException("Zoom did not return a valid download link.");
         return link;
+    }
+
+    internal static async Task DeleteFileForUi(string fileId)
+    {
+        if (string.IsNullOrWhiteSpace(fileId)) throw new ArgumentException("The file ID is missing.");
+        using var client = await CreateClient();
+        using var response = await client.DeleteAsync($"https://api.zoom.us/v2/chat/files/{Uri.EscapeDataString(fileId)}");
+        if (response.StatusCode == HttpStatusCode.Forbidden)
+            throw new InvalidOperationException(
+                "Zoom did not allow this file to be deleted. Add the team_chat:delete:file scope, then sign out and sign in again.");
+        await EnsureSuccess(response);
     }
 
     internal static async Task<string> DownloadFileForUi(UploadedFile file, string destinationFolder)
@@ -272,59 +293,104 @@ internal static class Program
     private static async Task<int> Login(string clientId)
     {
         if (string.IsNullOrWhiteSpace(clientId)) throw new ArgumentException("Public Client ID is required.");
-        using var listener = new HttpListener();
-        listener.Prefixes.Add("http://127.0.0.1:8765/");
-        listener.Start();
-        var verifier = Base64Url(RandomNumberGenerator.GetBytes(32));
-        var challenge = Base64Url(SHA256.HashData(Encoding.ASCII.GetBytes(verifier)));
-        var state = Base64Url(RandomNumberGenerator.GetBytes(32));
-        var url = "https://zoom.us/oauth/authorize?response_type=code" +
-            $"&client_id={Uri.EscapeDataString(clientId)}&redirect_uri={Uri.EscapeDataString(RedirectUri)}" +
-            $"&code_challenge={challenge}&code_challenge_method=S256&state={state}";
-        Console.WriteLine("Opening Zoom sign-in. Complete authorization within 5 minutes.");
-        Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
-        using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(5));
-        while (true)
+        if (!await LoginGate.WaitAsync(0))
+            throw new InvalidOperationException("Zoom sign-in is already open. Complete it in your browser.");
+
+        try
         {
-            var context = await listener.GetContextAsync().WaitAsync(timeout.Token);
-            if (context.Request.Url?.AbsolutePath != "/callback")
+            using var listener = new HttpListener();
+            listener.Prefixes.Add("http://127.0.0.1:8765/");
+            try
             {
-                context.Response.StatusCode = 404;
-                context.Response.Close();
-                continue;
+                listener.Start();
             }
-            var query = context.Request.QueryString;
-            var validState = CryptographicOperations.FixedTimeEquals(
-                Encoding.ASCII.GetBytes(query["state"] ?? ""), Encoding.ASCII.GetBytes(state));
-            if (!validState)
+            catch (HttpListenerException ex)
             {
-                context.Response.StatusCode = 400;
-                context.Response.Close();
-                throw new InvalidOperationException("OAuth state did not match; sign-in was rejected.");
+                throw new InvalidOperationException(
+                    "Zoom sign-in could not start because another sign-in window or application is using the local callback. " +
+                    "Finish or close the other sign-in, then try again.", ex);
             }
-            var code = query["code"];
-            var error = query["error"];
-            var success = code is not null && error is null;
-            var message = success ? "Zoom authorization received. You may close this tab." : "Zoom authorization was not completed.";
-            var body = Encoding.UTF8.GetBytes($"<html><body><p>{message}</p></body></html>");
-            context.Response.ContentType = "text/html; charset=utf-8";
-            context.Response.ContentLength64 = body.Length;
-            await context.Response.OutputStream.WriteAsync(body);
-            context.Response.Close();
-            listener.Stop();
-            if (!success) throw new InvalidOperationException($"Zoom authorization failed: {error ?? "missing code"}");
-            using var client = new HttpClient();
-            using var form = new FormUrlEncodedContent(new Dictionary<string, string>
+            var verifier = Base64Url(RandomNumberGenerator.GetBytes(32));
+            var challenge = Base64Url(SHA256.HashData(Encoding.ASCII.GetBytes(verifier)));
+            var state = Base64Url(RandomNumberGenerator.GetBytes(32));
+            var url = "https://zoom.us/oauth/authorize?response_type=code" +
+                $"&client_id={Uri.EscapeDataString(clientId)}&redirect_uri={Uri.EscapeDataString(RedirectUri)}" +
+                $"&code_challenge={challenge}&code_challenge_method=S256&state={state}";
+            Console.WriteLine("Opening Zoom sign-in. Complete authorization within 5 minutes.");
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+            while (true)
             {
-                ["grant_type"] = "authorization_code", ["client_id"] = clientId,
-                ["code"] = code!, ["redirect_uri"] = RedirectUri, ["code_verifier"] = verifier
-            });
-            using var response = await client.PostAsync("https://zoom.us/oauth/token", form);
-            await EnsureSuccess(response);
-            SaveAuth(ParseAuth(clientId, await response.Content.ReadAsStringAsync()));
-            Console.WriteLine("Signed in. Tokens are encrypted for this Windows user.");
-            return 0;
+                var context = await listener.GetContextAsync().WaitAsync(timeout.Token);
+                if (context.Request.Url?.AbsolutePath != "/callback")
+                {
+                    context.Response.StatusCode = 404;
+                    context.Response.Close();
+                    continue;
+                }
+                var query = context.Request.QueryString;
+                var validState = CryptographicOperations.FixedTimeEquals(
+                    Encoding.ASCII.GetBytes(query["state"] ?? ""), Encoding.ASCII.GetBytes(state));
+                if (!validState)
+                {
+                    context.Response.StatusCode = 400;
+                    context.Response.Close();
+                    throw new InvalidOperationException("OAuth state did not match; sign-in was rejected.");
+                }
+                var code = query["code"];
+                var error = query["error"];
+                var success = code is not null && error is null;
+                var message = success ? "Zoom authorization received. You may close this tab." : "Zoom authorization was not completed.";
+                var body = Encoding.UTF8.GetBytes($"<html><body><p>{message}</p></body></html>");
+                context.Response.ContentType = "text/html; charset=utf-8";
+                context.Response.ContentLength64 = body.Length;
+                await context.Response.OutputStream.WriteAsync(body);
+                context.Response.Close();
+                listener.Stop();
+                if (!success) throw new InvalidOperationException($"Zoom authorization failed: {error ?? "missing code"}");
+                using var client = new HttpClient();
+                using var form = new FormUrlEncodedContent(new Dictionary<string, string>
+                {
+                    ["grant_type"] = "authorization_code", ["client_id"] = clientId,
+                    ["code"] = code!, ["redirect_uri"] = RedirectUri, ["code_verifier"] = verifier
+                });
+                using var response = await client.PostAsync("https://zoom.us/oauth/token", form);
+                await EnsureSuccess(response);
+                SaveAuth(ParseAuth(clientId, await response.Content.ReadAsStringAsync()));
+                Console.WriteLine("Signed in. Tokens are encrypted for this Windows user.");
+                return 0;
+            }
         }
+        finally
+        {
+            LoginGate.Release();
+        }
+    }
+
+    private static void ActivateExistingInstance()
+    {
+        var current = Process.GetCurrentProcess();
+        foreach (var process in Process.GetProcessesByName(current.ProcessName))
+        {
+            using (process)
+            {
+                if (process.Id == current.Id) continue;
+                var found = false;
+                EnumWindows((window, _) =>
+                {
+                    GetWindowThreadProcessId(window, out var processId);
+                    if (processId != process.Id) return true;
+                    ShowWindow(window, 9);
+                    SetForegroundWindow(window);
+                    found = true;
+                    return false;
+                }, IntPtr.Zero);
+                if (found) return;
+            }
+        }
+
+        MessageBox.Show("Zoom Clipboard is already running in the notification area.",
+            "Zoom Clipboard", MessageBoxButtons.OK, MessageBoxIcon.Information);
     }
 
     private static string Base64Url(byte[] bytes) => Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
@@ -386,6 +452,38 @@ internal static class Program
             if (id is not null) channels.Add((id, name ?? id));
         }
         return channels;
+    }
+
+    internal static async Task<(string Id, string Name)> CreateChannelForUi(string channelName)
+    {
+        var name = channelName.Trim();
+        if (name.Length is < 1 or > 80)
+            throw new ArgumentException("Enter a channel name between 1 and 80 characters.");
+
+        using var client = await CreateClient();
+        var payload = new
+        {
+            name,
+            type = 1,
+            channel_settings = new
+            {
+                add_member_permissions = 2,
+                allow_to_add_external_users = 0,
+                mention_all_permissions = 2,
+                new_members_can_see_previous_messages_files = true,
+                posting_permissions = 1
+            }
+        };
+        using var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+        using var response = await client.PostAsync("https://api.zoom.us/v2/chat/users/me/channels", content);
+        await EnsureSuccess(response);
+        var root = JsonNode.Parse(await response.Content.ReadAsStringAsync())
+            ?? throw new InvalidDataException("Zoom returned an empty channel response.");
+        var id = root["id"]?.GetValue<string>();
+        if (string.IsNullOrWhiteSpace(id))
+            throw new InvalidDataException("Zoom created the channel but did not return its ID.");
+        SaveChannelForUi(id);
+        return (id, root["name"]?.GetValue<string>() ?? name);
     }
 
     private static async Task<int> ListChannels()
@@ -463,13 +561,33 @@ internal static class Program
         if (error is not null) throw new InvalidOperationException("Could not copy the link to the Windows clipboard.", error);
     }
 
+    private static readonly string[] AllowedUploadExtensions = [".txt", ".csv", ".log", ".md"];
+
+    internal static string UploadFileFilter =>
+        $"Supported files ({string.Join(", ", AllowedUploadExtensions)})|{string.Join(";", AllowedUploadExtensions.Select(extension => "*" + extension))}";
+
+    internal static void ValidateUploadExtension(string path)
+    {
+        if (!AllowedUploadExtensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase))
+            throw new InvalidOperationException($"Unsupported file type for {Path.GetFileName(path)}. Allowed extensions: {string.Join(", ", AllowedUploadExtensions)}.");
+    }
+
     private static async Task<(string MessageId, Config Config)> SendFile(string inputPath, IProgress<int>? progress = null)
     {
         var path = Path.GetFullPath(inputPath);
+        ValidateUploadExtension(path);
         if (!File.Exists(path)) throw new FileNotFoundException("File not found.", path);
-        var fileLength = new FileInfo(path).Length;
+        await using var source = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read,
+            65536, FileOptions.Asynchronous | FileOptions.SequentialScan);
+        var fileLength = source.Length;
         if (fileLength > 20 * 1024 * 1024)
             throw new InvalidOperationException($"File is too large ({fileLength / 1024d / 1024d:0.1} MB). Zoom allows up to 20 MB per file.");
+        var header = new byte[4];
+        var headerLength = await source.ReadAtLeastAsync(header, header.Length, false);
+        var signature = header.AsSpan(0, headerLength);
+        if (signature.StartsWith("MZ"u8) || signature.StartsWith("\u007fELF"u8))
+            throw new InvalidOperationException($"Executable content is not allowed in uploads: {Path.GetFileName(path)}.");
+
         var config = LoadConfig();
         if (config.ChannelId is null && config.Contact is null)
             throw new InvalidOperationException("No destination configured.");
@@ -479,7 +597,7 @@ internal static class Program
         HttpRequestMessage Factory(Uri uri)
         {
             var form = new MultipartFormDataContent();
-            var file = new ProgressFileContent(path, progress);
+            var file = new ProgressFileContent(source, progress);
             file.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
             var safeFileName = Path.GetFileName(path).Replace('"', '_').Replace('\r', '_').Replace('\n', '_');
             file.Headers.TryAddWithoutValidation("Content-Disposition",
@@ -670,6 +788,20 @@ internal static class Program
 
     [DllImport("shell32.dll")]
     private static extern void SHChangeNotify(uint eventId, uint flags, IntPtr item1, IntPtr item2);
+
+    private delegate bool EnumWindowsCallback(IntPtr window, IntPtr parameter);
+
+    [DllImport("user32.dll")]
+    private static extern bool EnumWindows(EnumWindowsCallback callback, IntPtr parameter);
+
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(IntPtr window, out int processId);
+
+    [DllImport("user32.dll")]
+    private static extern bool ShowWindow(IntPtr window, int command);
+
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr window);
 
     private static void NotifyExplorer() => SHChangeNotify(0x08000000, 0, IntPtr.Zero, IntPtr.Zero);
 }

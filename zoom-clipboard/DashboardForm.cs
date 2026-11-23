@@ -4,6 +4,9 @@ namespace ZoomClipboard;
 
 internal sealed class DashboardForm : Form
 {
+    private readonly NotifyIcon trayIcon;
+    private bool allowExit;
+    private bool trayHintShown;
     private readonly Panel side = new() { BackColor = Color.White, Dock = DockStyle.Left, Width = 230 };
     private readonly Panel body = new() { BackColor = UiTheme.Canvas, Dock = DockStyle.Fill };
     private readonly Panel home = new() { BackColor = UiTheme.Canvas };
@@ -29,6 +32,8 @@ internal sealed class DashboardForm : Form
     private readonly PremiumButton fullCopy = Secondary("Copy link");
     private readonly PremiumButton homeDownload = Secondary("Download");
     private readonly PremiumButton fullDownload = Secondary("Download");
+    private readonly PremiumButton homeDelete = Danger("Delete");
+    private readonly PremiumButton fullDelete = Danger("Delete");
     private readonly PremiumButton login = Primary("Sign in with Zoom");
     private readonly PremiumButton logout = Secondary("Sign out");
     private readonly PremiumButton channelRefresh = Secondary("Refresh channels");
@@ -57,6 +62,20 @@ internal sealed class DashboardForm : Form
         AutoScaleMode = AutoScaleMode.Dpi;
         BackColor = UiTheme.Canvas;
         Font = new Font("Segoe UI", 10);
+
+        var trayMenu = new ContextMenuStrip();
+        trayMenu.Items.Add("Open Zoom Clipboard", null, (_, _) => RestoreFromTray());
+        trayMenu.Items.Add(new ToolStripSeparator());
+        trayMenu.Items.Add("Exit", null, (_, _) => ExitApplication());
+        trayIcon = new NotifyIcon
+        {
+            Icon = SystemIcons.Application,
+            Text = "Zoom Clipboard",
+            Visible = true,
+            ContextMenuStrip = trayMenu
+        };
+        trayIcon.DoubleClick += (_, _) => RestoreFromTray();
+
         Controls.Add(body);
         Controls.Add(side);
         BuildSidebar();
@@ -72,6 +91,35 @@ internal sealed class DashboardForm : Form
         ShowPage(0);
         Resize += (_, _) => Place();
         Shown += async (_, _) => { Place(); if (Program.IsSignedIn) await Run(LoadAccount); else SetSignedOut(); };
+        FormClosing += OnFormClosing;
+        FormClosed += (_, _) => trayIcon.Dispose();
+    }
+
+    private void OnFormClosing(object? sender, FormClosingEventArgs e)
+    {
+        if (allowExit || e.CloseReason is CloseReason.WindowsShutDown or CloseReason.TaskManagerClosing)
+            return;
+
+        e.Cancel = true;
+        Hide();
+        if (trayHintShown) return;
+        trayHintShown = true;
+        trayIcon.ShowBalloonTip(3000, "Zoom Clipboard is still running",
+            "Double-click the tray icon to open it, or right-click the icon to exit.", ToolTipIcon.Info);
+    }
+
+    private void RestoreFromTray()
+    {
+        Show();
+        WindowState = FormWindowState.Normal;
+        Activate();
+    }
+
+    private void ExitApplication()
+    {
+        allowExit = true;
+        trayIcon.Visible = false;
+        Close();
     }
 
     private void BuildSidebar()
@@ -126,9 +174,10 @@ internal sealed class DashboardForm : Form
         explorerCard.Controls.Add(homeSummary);
         homeList.SetBounds(20, 95, 440, 450);
         explorerCard.Controls.Add(homeList);
-        homeCopy.SetBounds(20, 560, 125, 40);
-        homeDownload.SetBounds(155, 560, 125, 40);
-        explorerCard.Controls.AddRange([homeCopy, homeDownload]);
+        homeCopy.SetBounds(20, 560, 105, 40);
+        homeDownload.SetBounds(135, 560, 105, 40);
+        homeDelete.SetBounds(250, 560, 88, 40);
+        explorerCard.Controls.AddRange([homeCopy, homeDownload, homeDelete]);
     }
 
     private void BuildFiles()
@@ -145,7 +194,8 @@ internal sealed class DashboardForm : Form
         fullCard.Controls.Add(fullList);
         fullCopy.SetBounds(20, 575, 140, 42);
         fullDownload.SetBounds(170, 575, 140, 42);
-        fullCard.Controls.AddRange([fullCopy, fullDownload]);
+        fullDelete.SetBounds(320, 575, 120, 42);
+        fullCard.Controls.AddRange([fullCopy, fullDownload, fullDelete]);
     }
 
     private void BuildSettings()
@@ -183,7 +233,7 @@ internal sealed class DashboardForm : Form
         signInShortcut.Click += (_, _) => ShowPage(3);
         upload.Click += async (_, _) =>
         {
-            using var picker = new OpenFileDialog { Title = "Select files to upload", Multiselect = true };
+            using var picker = new OpenFileDialog { Title = "Select files to upload", Filter = Program.UploadFileFilter, Multiselect = true };
             if (picker.ShowDialog(this) == DialogResult.OK) await UploadFiles(picker.FileNames);
         };
         drop.DragEnter += (_, e) => { var ok = !busy && channels.SelectedItem is Channel && e.Data?.GetDataPresent(DataFormats.FileDrop) == true; e.Effect = ok ? DragDropEffects.Copy : DragDropEffects.None; if (ok) drop.BackColor = Color.FromArgb(224, 235, 255); };
@@ -200,15 +250,20 @@ internal sealed class DashboardForm : Form
         fullCopy.Click += async (_, _) => await CopyLink(fullList);
         homeDownload.Click += async (_, _) => await Download(homeList);
         fullDownload.Click += async (_, _) => await Download(fullList);
+        homeDelete.Click += async (_, _) => await DeleteFile(homeList);
+        fullDelete.Click += async (_, _) => await DeleteFile(fullList);
         homeList.DoubleClick += async (_, _) => await CopyLink(homeList);
         fullList.DoubleClick += async (_, _) => await CopyLink(fullList);
         homeList.SelectedIndexChanged += (_, _) => UpdateButtons();
         fullList.SelectedIndexChanged += (_, _) => UpdateButtons();
-        foreach (var list in new[] { homeList, fullList })
+        foreach (var list in new[] { homeList, fullList, recentList })
         {
             var menu = new ContextMenuStrip();
             menu.Items.Add("Copy download link", null, async (_, _) => await CopyLink(list));
             menu.Items.Add("Download file", null, async (_, _) => await Download(list));
+            menu.Items.Add(new ToolStripSeparator());
+            var deleteItem = menu.Items.Add("Delete from Zoom", null, async (_, _) => await DeleteFile(list));
+            deleteItem.ForeColor = UiTheme.Danger;
             list.ContextMenuStrip = menu;
         }
     }
@@ -298,6 +353,8 @@ internal sealed class DashboardForm : Form
         if (paths.Length == 0) return;
         await Run(async () =>
         {
+            foreach (var path in paths) Program.ValidateUploadExtension(path);
+
             var count = 0;
             foreach (var path in paths)
             {
@@ -328,6 +385,30 @@ internal sealed class DashboardForm : Form
         using var picker = new FolderBrowserDialog { Description = $"Download {file.Name} to" };
         if (picker.ShowDialog(this) != DialogResult.OK) return;
         await Run(async () => SetStatus($"Downloaded to {await Program.DownloadFileForUi(file, picker.SelectedPath)}", UiTheme.Success));
+    }
+
+    private async Task DeleteFile(ListView list)
+    {
+        if (list.SelectedItems.Count == 0 || list.SelectedItems[0].Tag is not Program.UploadedFile file) return;
+        var confirmed = MessageBox.Show(this,
+            $"Delete '{file.Name}' from Zoom?\n\nThis cannot be undone and the existing download link will stop working.",
+            "Delete file", MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2);
+        if (confirmed != DialogResult.Yes) return;
+
+        await Run(async () =>
+        {
+            SetStatus($"Deleting {file.Name}…", UiTheme.Warning);
+            await Program.DeleteFileForUi(file.FileId);
+            entries = entries.Where(entry => entry.FileId != file.FileId).ToArray();
+            FillLists();
+            try { await LoadFiles(); }
+            catch (Exception)
+            {
+                SetStatus($"Deleted {file.Name}. Could not refresh Zoom history; try Refresh later.", UiTheme.Warning);
+                return;
+            }
+            SetStatus($"Deleted {file.Name} from Zoom.", UiTheme.Success);
+        });
     }
 
     private void ShowPage(int index)
@@ -363,13 +444,13 @@ internal sealed class DashboardForm : Form
         homeList.Height = explorerCard.Height - 160;
         homeList.Columns[0].Width = Math.Max(170, homeList.Width - 224);
         recentList.Columns[0].Width = Math.Max(170, recentList.Width - 224);
-        homeCopy.Top = homeDownload.Top = explorerCard.Height - 55;
+        homeCopy.Top = homeDownload.Top = homeDelete.Top = explorerCard.Height - 55;
         fullCard.SetBounds(28, 115, w - 56, h - 132);
         fullRefresh.Left = fullCard.Width - 150;
         fullList.Width = fullCard.Width - 40;
         fullList.Height = fullCard.Height - 162;
         fullList.Columns[0].Width = Math.Max(230, fullList.Width - 224);
-        fullCopy.Top = fullDownload.Top = fullCard.Height - 57;
+        fullCopy.Top = fullDownload.Top = fullDelete.Top = fullCard.Height - 57;
         accountCard.Width = (w - 72) / 2;
         channelCard.Left = accountCard.Right + 16;
         channelCard.Width = w - channelCard.Left - 28;
@@ -402,8 +483,8 @@ internal sealed class DashboardForm : Form
     {
         var ready = !busy && Program.IsSignedIn && channels.SelectedItem is Channel;
         upload.Enabled = homeRefresh.Enabled = fullRefresh.Enabled = ready;
-        homeCopy.Enabled = homeDownload.Enabled = ready && homeList.SelectedItems.Count > 0;
-        fullCopy.Enabled = fullDownload.Enabled = ready && fullList.SelectedItems.Count > 0;
+        homeCopy.Enabled = homeDownload.Enabled = homeDelete.Enabled = ready && homeList.SelectedItems.Count > 0;
+        fullCopy.Enabled = fullDownload.Enabled = fullDelete.Enabled = ready && fullList.SelectedItems.Count > 0;
         login.Enabled = install.Enabled = !busy;
         logout.Enabled = channelRefresh.Enabled = channels.Enabled = !busy && Program.IsSignedIn;
     }
@@ -418,6 +499,7 @@ internal sealed class DashboardForm : Form
     };
     private static PremiumButton Primary(string text) => new() { Text = text };
     private static PremiumButton Secondary(string text) => new() { Text = text, FillColor = UiTheme.PrimarySoft, HoverColor = Color.FromArgb(216, 230, 255), TextColor = UiTheme.PrimaryDark };
+    private static PremiumButton Danger(string text) => new() { Text = text, FillColor = Color.FromArgb(254, 226, 226), HoverColor = Color.FromArgb(254, 202, 202), TextColor = UiTheme.Danger };
     private static PremiumButton Nav(string text) => new() { Text = text, FillColor = Color.White, HoverColor = UiTheme.PrimarySoft, TextColor = UiTheme.PrimaryDark, AlignLeft = true, Radius = 14 };
     private static ListView MakeList()
     {

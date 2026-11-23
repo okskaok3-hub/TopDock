@@ -12,18 +12,19 @@ public sealed class WindowEntry
     public string ShortcutHint { get; set; } = string.Empty;
 }
 
+public enum EdgeRevealMode
+{
+    Delayed,
+    Immediate,
+    ShortcutOnly
+}
+
 public sealed class AppSettings
 {
     public bool Pinned { get; set; }
+    public EdgeRevealMode EdgeRevealMode { get; set; }
     public bool RunAtStartup { get; set; }
     public bool CompactMode { get; set; }
-    public int ClickAreaLeft { get; set; }
-    public int ClickAreaTop { get; set; }
-    public int ClickAreaWidth { get; set; }
-    public int ClickAreaHeight { get; set; }
-    public List<string> QuickActionOrder { get; set; } = ["paste", "shot", "auto", "zoom"];
-    public List<string> HiddenQuickActions { get; set; } = [];
-    public string? ZoomClipboardPath { get; set; }
-    public double? DockLeft { get; set; }
-    public double? DockTop { get; set; }
+    public bool ShowWindowSearch { get; set; }
+    public List<string>? ButtonOrder { get; set; }
 }

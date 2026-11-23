@@ -9,20 +9,6 @@ public partial class App : System.Windows.Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
-        if (e.Args.Contains("--version", StringComparer.OrdinalIgnoreCase))
-        {
-            Console.WriteLine($"TopDock {typeof(App).Assembly.GetName().Version?.ToString(3)}");
-            Shutdown(0);
-            return;
-        }
-        if (e.Args.Contains("--zoom-check", StringComparer.OrdinalIgnoreCase))
-        {
-            var path = global::TopDock.MainWindow.FindZoomClipboardPath(SettingsStore.Load(), AppContext.BaseDirectory,
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
-            Console.WriteLine(path ?? "ZoomClipboardUI.exe not found");
-            Shutdown(path is null ? 1 : 0);
-            return;
-        }
         if (e.Args.Contains("--content-test", StringComparer.OrdinalIgnoreCase))
         {
             ContentChecks.Run();

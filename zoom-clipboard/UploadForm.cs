@@ -81,6 +81,7 @@ internal sealed class UploadForm : Form
         title.ForeColor = UiTheme.Text;
         try
         {
+            Program.ValidateUploadExtension(filePath);
             if (!File.Exists(filePath)) throw new FileNotFoundException("The selected file no longer exists.", filePath);
             if (!Program.IsSignedIn) throw new InvalidOperationException("Sign in from the main Zoom Clipboard window first.");
             if (Program.SavedChannelId is null) throw new InvalidOperationException("Select a Team Chat channel in Zoom Clipboard first.");

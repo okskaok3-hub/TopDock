@@ -7,8 +7,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>TopDock</AssemblyName>
+    <Version>1.4.1</Version>
     <RootNamespace>TopDock</RootNamespace>
-    <Version>1.3.0</Version>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <ApplicationIcon>TopDock.ico</ApplicationIcon>

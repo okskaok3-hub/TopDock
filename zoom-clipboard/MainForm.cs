@@ -210,7 +210,7 @@ internal sealed class MainForm : Form
         };
         upload.Click += async (_, _) =>
         {
-            using var picker = new OpenFileDialog { Title = "Choose a file to send to Zoom" };
+            using var picker = new OpenFileDialog { Title = "Choose a file to send to Zoom", Filter = Program.UploadFileFilter };
             if (picker.ShowDialog(this) != DialogResult.OK) return;
             await Run(async () =>
             {
@@ -285,7 +285,7 @@ internal sealed class MainForm : Form
     private void UpdateExplorerState()
     {
         var enabled = Program.IsContextInstalled;
-        explorerState.Text = enabled ? "Ready\nRight-click any file to upload" : "Not enabled\nAdd the action to File Explorer";
+        explorerState.Text = enabled ? "Ready\nRight-click a supported file to upload" : "Not enabled\nAdd the action to File Explorer";
         explorerState.ForeColor = enabled ? UiTheme.Success : UiTheme.Muted;
         install.Text = enabled ? "Reinstall right-click action" : "Enable right-click action";
     }

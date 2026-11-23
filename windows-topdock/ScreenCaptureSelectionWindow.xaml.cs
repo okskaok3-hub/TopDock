@@ -19,7 +19,11 @@ public partial class ScreenCaptureSelectionWindow : Window
     {
         InitializeComponent();
         SourceInitialized += Window_SourceInitialized;
-        Loaded += (_, _) => Activate();
+        Loaded += (_, _) =>
+        {
+            Activate();
+            UpdateCrosshair(System.Windows.Input.Mouse.GetPosition(SelectionCanvas));
+        };
     }
 
     public Int32Rect? SelectedArea { get; private set; }
@@ -51,10 +55,17 @@ public partial class ScreenCaptureSelectionWindow : Window
 
     private void Canvas_MouseMove(object sender, System.Windows.Input.MouseEventArgs e)
     {
-        if (_start is null || e.LeftButton != MouseButtonState.Pressed)
-            return;
+        var position = e.GetPosition(SelectionCanvas);
+        UpdateCrosshair(position);
+        if (_start is not null && e.LeftButton == MouseButtonState.Pressed)
+            UpdateSelection(position);
+    }
 
-        UpdateSelection(e.GetPosition(SelectionCanvas));
+    private void UpdateCrosshair(System.Windows.Point position)
+    {
+        Canvas.SetLeft(Crosshair, position.X - Crosshair.Width / 2);
+        Canvas.SetTop(Crosshair, position.Y - Crosshair.Height / 2);
+        Crosshair.Visibility = Visibility.Visible;
     }
 
     private void Canvas_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
